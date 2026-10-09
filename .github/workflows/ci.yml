@@ -1,0 +1,71 @@
+name: CI
+
+# デプロイ (build.yml) は schedule / workflow_dispatch でしか走らないため、
+# PR の時点では何も検証されていなかった。dependabot の bump が壊れていても
+# merge でき、次の定時デプロイ = 公開サイトで初めて壊れる。ここで PR ごとに
+# 「依存が解決でき、fetch → doctor → build が通る」ことを確認する。
+on:
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# 検証専用。デプロイはしないので pages / id-token は不要。
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env:
+      # cosense.config.ts が読む。Settings → Secrets and variables → Actions →
+      # Variables に COSENSE_PROJECT (公開 Cosense プロジェクト名) を登録する。
+      COSENSE_PROJECT: ${{ vars.COSENSE_PROJECT }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      # restore 専用 (save しない): PR の一時的なキャッシュで build.yml 側の
+      # デプロイ用キャッシュを上書きしないため。miss してもフル fetch に
+      # フォールバックするだけ。
+      - name: Restore Cosense cache
+        uses: actions/cache/restore@v6
+        with:
+          path: .cosense-cache
+          key: cosense-cache-${{ github.run_id }}
+          restore-keys: |
+            cosense-cache-
+
+      # package-lock.json は gitignore しているので build.yml と同じく npm install。
+      # peerDependencies の衝突 (例: @cosense-site-kit/* が未対応の astro major)
+      # はここで落ちる。
+      - run: npm install
+
+      - run: npx cosense-site fetch
+
+      # doctor は fail のみ exit 1 (warn は 0)。壊れたデプロイだけを止める。
+      - run: npx cosense-site doctor
+
+      - run: npx astro build
+
+  # Dependabot の PR は check が通れば自動でマージする (失敗した PR は残るので
+  # 人が見る)。マージ後は build.yml の定時実行で公開サイトに反映される。
+  # `gh pr merge --auto` はリポ設定 (auto-merge 許可・必須チェック) が要り、
+  # テンプレートから作ったリポには引き継がれないため、needs: check で
+  # ゲートしたうえで直接マージする。止めたいときはこの job を消す。
+  automerge:
+    needs: check
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - run: gh pr merge --squash "$PR_URL"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

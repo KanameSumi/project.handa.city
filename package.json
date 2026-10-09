@@ -1,0 +1,24 @@
+{
+  "name": "my-cosense-site",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "cosense-site fetch && astro build",
+    "preview": "astro preview",
+    "fetch": "cosense-site fetch",
+    "validate": "cosense-site validate",
+    "doctor": "cosense-site doctor"
+  },
+  "dependencies": {
+    "@cosense-site-kit/astro": "^0.2.1",
+    "@cosense-site-kit/cli": "^0.1.13",
+    "@cosense-site-kit/core": "^0.4.3",
+    "@cosense-site-kit/theme-default": "^0.8.1",
+    "astro": "^7.3.5"
+  },
+  "overrides": {
+    "esbuild": ">=0.28.1"
+  }
+}

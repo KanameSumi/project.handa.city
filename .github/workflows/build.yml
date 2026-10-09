@@ -1,0 +1,70 @@
+name: Build and deploy
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 1,13 * * *"
+
+# Required by actions/deploy-pages.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Avoid concurrent deploys racing each other.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      # cosense.config.ts が読む。Settings → Secrets and variables → Actions →
+      # Variables に COSENSE_PROJECT (公開 Cosense プロジェクト名) を登録する。
+      COSENSE_PROJECT: ${{ vars.COSENSE_PROJECT }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      # Unique key per run: actions/cache never re-saves on an exact-key hit,
+      # so a fixed key would freeze the cache and defeat the differential fetch.
+      - name: Restore Cosense cache
+        uses: actions/cache@v6
+        with:
+          path: .cosense-cache
+          key: cosense-cache-${{ github.run_id }}
+          restore-keys: |
+            cosense-cache-
+
+      - name: Configure Pages
+        id: pages
+        uses: actions/configure-pages@v6
+
+      - run: npm install
+      - run: npx cosense-site fetch
+      # base_path / origin from configure-pages feed site.base / site.baseUrl
+      # in cosense.config.ts, so the site works at any GitHub Pages URL (user
+      # or project page) without editing the config.
+      - run: npx astro build
+        env:
+          PAGES_BASE_PATH: ${{ steps.pages.outputs.base_path }}
+          PAGES_ORIGIN: ${{ steps.pages.outputs.origin }}
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: ./dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v5
