@@ -1,0 +1,66 @@
+---
+import type { CollectionEntry } from "astro:content";
+import { vtName } from "@cosense-site-kit/theme-utils";
+import Backlinks from "@cosense-site-kit/theme-utils/components/Backlinks.astro";
+import PageContent from "@cosense-site-kit/theme-utils/components/PageContent.astro";
+import PageMeta from "@cosense-site-kit/theme-utils/components/PageMeta.astro";
+import Related from "@cosense-site-kit/theme-utils/components/Related.astro";
+import BackLink from "../components/BackLink.astro";
+import Layout from "../components/Layout.astro";
+import SectionHeader from "../components/SectionHeader.astro";
+import { backLinkFor, loadSections } from "../lib/sections";
+
+interface Props {
+  entry: CollectionEntry<"pages">;
+}
+
+const { entry } = Astro.props;
+const page = entry.data;
+
+// HAnDA: 日付は公開日だけを表示する（更新日は出さない）。
+// The date row (which dates show, and `#no-date` opting out of them) is
+// PageMeta's job. Tags are not summarised here: the page's `#tag`s already
+// render inline in the body (PageContent), so a header chip row would duplicate
+// them — hence no slot content.
+
+// Cross-document morph target. The body's first image (page.image) gets the same
+// view-transition-name as the list card thumbnail that links here, so clicking a
+// card morphs the thumbnail into that image in place — no separate hero, so the
+// body's image sequence is untouched. PageContent applies the name to the first
+// image block whose URL matches; pages whose image is the Cosense thumbnail (not
+// in the body) match nothing and simply cross-fade.
+const morphName = page.image ? vtName(page.slug) : undefined;
+// HAnDA: ナビに載っているページは共通見出し、詳細ページは一覧へ戻るリンク
+const navSection = (await loadSections()).find((s) => s.entry?.data.slug === page.slug);
+const back = await backLinkFor(page.tags);
+---
+<Layout title={page.title} description={page.summary} image={page.image} ogType="article">
+  <article data-pagefind-body>
+    <BackLink back={back} />
+    {navSection ? (
+      <SectionHeader en={navSection.en} title={page.title} />
+    ) : (
+    <header class="page-header">
+      {page.draft && <span class="draft-badge">Draft · preview only</span>}
+      {/* `page-title` is set here (not on .page-header h1 globally) so it only
+          pairs detail page → detail page; list headers ("Posts", "#tag") don't
+          carry it, avoiding a flickery text-to-text cross-fade on list → detail. */}
+      <h1 style="view-transition-name: page-title">{page.title}</h1>
+      <PageMeta
+        tags={page.tags}
+        publishedAt={page.publishedAt}
+      />
+    </header>
+    )}
+
+    <PageContent blocks={page.blocks} morphName={morphName} morphImageUrl={page.image} />
+
+    <Backlinks backlinks={page.backlinks} />
+
+    <Related title={page.title} links={page.links} exclude={page.backlinks} />
+
+    <footer class="source" data-pagefind-ignore>
+      <a href={page.sourceUrl} target="_blank" rel="noopener noreferrer">Source on Cosense ↗</a>
+    </footer>
+  </article>
+</Layout>

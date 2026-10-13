@@ -1,0 +1,209 @@
+---
+// HAnDA: お問い合わせページ用テンプレート（#template/contact）。
+// 本文の最初の code:contact.yaml から、研究室カードと SNS カードを作る。
+// YAML の書き方は lib/contact.ts を参照。YAML の前後の本文はそのまま表示される。
+import type { CollectionEntry } from "astro:content";
+import PageContent from "@cosense-site-kit/theme-utils/components/PageContent.astro";
+import Layout from "../components/Layout.astro";
+import SectionHeader from "../components/SectionHeader.astro";
+import { contactBlockIndex, parseContact } from "../lib/contact";
+import { loadSections } from "../lib/sections";
+
+interface Props {
+  entry: CollectionEntry<"pages">;
+}
+const { entry } = Astro.props;
+const page = entry.data;
+const navSection = (await loadSections()).find((s) => s.entry?.data.slug === page.slug);
+const data = parseContact(entry);
+const idx = contactBlockIndex(entry);
+const before = data ? page.blocks.slice(0, idx) : page.blocks;
+const after = data ? page.blocks.slice(idx + 1) : [];
+---
+<Layout title={page.title} description={page.summary} image={page.image}>
+  <article class="contact" data-pagefind-body>
+    <SectionHeader en={navSection?.en ?? "Contact"} title={page.title} />
+
+    {before.length > 0 && <PageContent blocks={before} />}
+
+    {data && data.accounts.length > 0 && (
+      <section class="contact-section">
+        <ul class="account-grid">
+          {data.accounts.map((a) => (
+            <li>
+              {a.url ? (
+                <a class:list={["account-btn", `is-${a.service.toLowerCase()}`]} href={a.url} target="_blank" rel="noopener noreferrer">
+                  <span class="account-service">{a.service}</span>
+                  {a.handle && <span class="account-handle">@{a.handle}</span>}
+                  <span class="account-cta">アカウントを見る <span aria-hidden="true">↗</span></span>
+                </a>
+              ) : (
+                <div class:list={["account-btn", "is-pending", `is-${a.service.toLowerCase()}`]}>
+                  <span class="account-service">{a.service}</span>
+                  <span class="account-cta">準備中</span>
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
+      </section>
+    )}
+
+    {data?.mail && (
+      <section class="contact-section">
+        {data.mail.href ? (
+          <a class="mail-btn" href={data.mail.href}>
+            <span class="mail-label">Mail</span>
+            <span class="mail-text">メールでお問い合わせ<small>{data.mail.address}</small></span>
+            <span class="mail-arrow" aria-hidden="true">→</span>
+          </a>
+        ) : (
+          <div class="mail-btn is-pending">
+            <span class="mail-label">Mail</span>
+            <span class="mail-text">メールでのお問い合わせ<small>準備中</small></span>
+          </div>
+        )}
+      </section>
+    )}
+
+    {data && data.sns.length > 0 && (
+      <section class="contact-section">
+        <p class="contact-eyebrow">Pick up</p>
+        <ul class="pick-list">
+          {data.sns.map((s) => (
+            <li>
+              <a href={s.url} target="_blank" rel="noopener noreferrer">
+                <b>{s.service}</b>{s.label && <span>{s.label}</span>}<span aria-hidden="true" class="pick-arrow">↗</span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      </section>
+    )}
+
+    {after.length > 0 && <PageContent blocks={after} />}
+
+    {data?.lab && (
+      <p class="lab-note">
+        関連：{data.lab.org && `${data.lab.org} `}
+        {data.lab.url
+          ? <a href={data.lab.url} target="_blank" rel="noopener noreferrer">{data.lab.name} ↗</a>
+          : data.lab.name}
+      </p>
+    )}
+  </article>
+</Layout>
+
+<style>
+  .contact-section { margin: 2.25rem 0; }
+  .contact-eyebrow {
+    margin: 0 0 0.75rem;
+    font-family: "Oswald", var(--font-display);
+    font-size: 0.85rem;
+    font-weight: 500;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+  }
+
+  /* SNS アカウントのボタン（メイン） */
+  .account-grid {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+  }
+  .account-btn {
+    --c: var(--color-accent);
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    height: 100%;
+    padding: 1.5rem 1.4rem 1.25rem;
+    border-radius: 14px;
+    background: var(--c);
+    color: #fff;
+    text-decoration: none;
+    transition: transform 0.15s var(--ease), box-shadow 0.15s var(--ease), filter 0.15s var(--ease);
+  }
+  .account-btn.is-x { --c: #1d1d22; }
+  .account-btn.is-instagram { --c: var(--color-accent); }
+  .account-btn.is-tiktok { --c: #1658a0; }
+  a.account-btn:hover {
+    text-decoration: none;
+    transform: translateY(-3px);
+    box-shadow: 0 12px 28px rgb(0 0 0 / 0.18);
+    filter: brightness(1.08);
+  }
+  .account-btn.is-pending { opacity: 0.45; }
+  .account-service {
+    font-family: "Oswald", var(--font-display);
+    font-size: 1.65rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    line-height: 1.1;
+    overflow-wrap: anywhere;
+  }
+  .account-handle { font-size: 0.95rem; opacity: 0.9; }
+  .account-cta {
+    margin-top: auto;
+    padding-top: 1rem;
+    font-size: 0.85rem;
+    font-weight: 700;
+  }
+
+  /* メールボタン（押すとメールソフトが開き、件名と本文のひな形が入る） */
+  .mail-btn {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    padding: 1.1rem 1.4rem;
+    border: 1.5px solid var(--color-text);
+    border-radius: 14px;
+    color: var(--color-text);
+    text-decoration: none;
+    transition: background 0.15s var(--ease), color 0.15s var(--ease);
+  }
+  a.mail-btn:hover { background: var(--color-text); color: #fff; text-decoration: none; }
+  .mail-btn.is-pending { opacity: 0.45; border-style: dashed; }
+  .mail-label {
+    font-family: "Oswald", var(--font-display);
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .mail-text { display: flex; flex-direction: column; font-weight: 700; }
+  .mail-text small { font-weight: 400; font-size: 0.8rem; opacity: 0.75; }
+  .mail-arrow { margin-left: auto; font-size: 1.4rem; }
+
+  /* おすすめ投稿（小さめ） */
+  .pick-list { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0.5rem; }
+  .pick-list a {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.4rem;
+    padding: 0.4rem 0.85rem;
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    font-size: 0.85rem;
+    color: var(--color-text-soft);
+    text-decoration: none;
+  }
+  .pick-list a:hover { border-color: var(--color-accent); color: var(--color-accent); text-decoration: none; }
+  .pick-list b { font-family: "Oswald", var(--font-sans); letter-spacing: 0.06em; color: var(--color-text); }
+  .pick-arrow { font-size: 0.75rem; }
+
+  /* 関わりのある研究室（控えめ） */
+  .lab-note {
+    margin: 3rem 0 0;
+    padding-top: 1rem;
+    border-top: 1px solid var(--color-divider);
+    font-size: 0.8rem;
+    color: var(--color-text-muted);
+  }
+  .lab-note a { color: inherit; }
+</style>

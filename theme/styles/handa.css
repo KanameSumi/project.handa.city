@@ -1,0 +1,134 @@
+/* ==========================================================================
+   HAnDA Project の追加スタイル
+   global.css（テーマ本来のスタイル）の後に読み込まれる。
+   色・フォントの値そのものは presets/handa.ts（CSS 変数）で管理。
+   ========================================================================== */
+
+/* ---- ヘッダー ---------------------------------------------------------- */
+.site-brand:has(.site-logo) { padding: 0.125rem 0.25rem; }
+.site-brand:has(.site-logo):hover { background: transparent; opacity: 0.85; }
+.site-logo { display: block; height: 30px; width: auto; }
+
+/* 2段メニュー（.site の nav で label を「英語|日本語」と書いたとき） */
+.site-nav a:has(.nav-ja) {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.15;
+  padding: 0.3rem 0.75rem;
+}
+.site-nav .nav-en {
+  font-family: "Oswald", var(--font-sans);
+  font-size: 0.9rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.site-nav .nav-ja {
+  font-size: 0.65rem;
+  font-weight: 400;
+  color: var(--color-text-muted);
+  margin-top: 0.15rem;
+}
+.site-nav a.is-active .nav-en { color: var(--color-accent); }
+
+@media (max-width: 720px) {
+  .site-logo { height: 24px; }
+  .site-nav a:has(.nav-ja) {
+    flex-direction: row;
+    align-items: baseline;
+    gap: 0.6rem;
+    padding: 0.5rem 0.625rem;
+  }
+}
+
+/* ---- 見出しの字間（テーマ既定は詰め気味なので広げる） --------------------- */
+h1 { letter-spacing: 0.06em; }
+h2, h3, h4, h5, h6 { letter-spacing: 0.03em; }
+.page-header h1 { letter-spacing: 0.06em; }
+
+/* ---- 「もっと見る」リンク（トップページなど） ---------------------------- */
+.more-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1.25rem;
+  padding: 0.55rem 1.1rem;
+  border: 1.5px solid var(--color-accent);
+  border-radius: 999px;
+  color: var(--color-accent);
+  font-weight: 700;
+  font-size: 0.9rem;
+  text-decoration: none;
+  transition: background 0.15s var(--ease), color 0.15s var(--ease);
+}
+.more-link:hover {
+  background: var(--color-accent);
+  color: #fff;
+  text-decoration: none;
+}
+
+/* ---- 本文中の設定用タグ（#slug/… #template/… #member/2026 など）は表示しない ---- */
+.tag-meta { display: none; }
+
+/* ==========================================================================
+   背景：左右の余白をレンガ模様（イギリス積み）にし、
+   ヘッダー・本文・フッターを同じ幅の白いパネルにする
+   ========================================================================== */
+:root {
+  /* 白いパネルの幅（ヘッダー・本文・フッター共通）と、パネル内の文章の幅 */
+  --panel-width: 68rem;
+  --text-width: 50rem;
+}
+
+/* レンガ模様。色を変えたいときは SVG の fill（レンガ #ecc3c7 / 目地 #fbf3f4）を書き換える。
+   イギリス積み = 長手（横長）の段と小口（短い）の段を1段ずつ交互に積む */
+html {
+  background-color: #fbf3f4;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2764%27 height=%2732%27 viewBox=%270 0 64 32%27%3E%3Crect width=%2764%27 height=%2732%27 fill=%27%23fbf3f4%27/%3E%3Cg fill=%27%23ecc3c7%27%3E%3Crect x=%271.5%27 y=%271.5%27 width=%2761%27 height=%2713%27 rx=%270.8%27/%3E%3Crect x=%27-14.5%27 y=%2717.5%27 width=%2729%27 height=%2713%27 rx=%270.8%27/%3E%3Crect x=%2717.5%27 y=%2717.5%27 width=%2729%27 height=%2713%27 rx=%270.8%27/%3E%3Crect x=%2749.5%27 y=%2717.5%27 width=%2729%27 height=%2713%27 rx=%270.8%27/%3E%3C/g%3E%3C/svg%3E");
+  background-size: 64px 32px;
+}
+
+/* ヘッダー：横いっぱいの帯をやめ、パネル幅で切り落とす */
+.site-header {
+  background: transparent;
+  border-bottom: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.site-header-inner {
+  max-width: var(--panel-width);
+  padding-left: 3.5rem;
+  padding-right: 3.5rem;
+  background: var(--color-bg);
+  border-top: 4px solid var(--color-accent);
+  border-bottom: 1px solid var(--color-border);
+}
+
+/* 本文パネル：余裕のある白。中の文章は読みやすい幅に収める */
+.site-main {
+  max-width: var(--panel-width);
+  padding: 5rem 3.5rem 7rem;
+  background: var(--color-bg);
+}
+.site-main > * {
+  max-width: var(--text-width);
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* フッターも同じ幅で切り落とす */
+.site-footer {
+  background: transparent;
+  border-top: none;
+}
+.site-footer-inner {
+  max-width: var(--panel-width);
+  background: var(--color-bg);
+  border-top: 1px solid var(--color-border);
+}
+
+@media (max-width: 720px) {
+  .site-header-inner { padding-left: 1rem; padding-right: 1rem; }
+  .site-main { padding: 2.5rem 1.25rem 4rem; }
+}

@@ -1,0 +1,100 @@
+---
+// /works — #works タグを付けた Cosense ページを自動で集める「活動・成果」一覧。
+//
+// 活動ページの書き方（Cosense 側）:
+//   - タイトル = 活動・成果物の名前
+//   - 本文 1 行目 = 一言説明 → カードの説明文になる
+//   - 写真を貼ると最初の 1 枚がカード画像になる
+//   - タグ: #publish #works  （日付を指定したいときは #published/2026-08-01）
+//   - 種類で分けたいときは #works/3D などを足すと絞り込みボタンが出る
+import { getCollection } from "astro:content";
+import { hasTag } from "@cosense-site-kit/theme-utils";
+import Card from "../components/Card.astro";
+import Layout from "../components/Layout.astro";
+import SectionHeader from "../components/SectionHeader.astro";
+import { byNewest, sectionInfo, worksTag } from "../lib/sections";
+
+const info = await sectionInfo("works");
+const tag = await worksTag();
+const prefix = `${tag.toLowerCase()}/`;
+const works = (await getCollection("pages")).filter((e) => hasTag(e.data.tags, tag)).sort(byNewest);
+
+// #works/3D のようなサブタグ → 絞り込みボタン
+const categoriesOf = (tags: string[]) =>
+  tags.filter((t) => t.toLowerCase().startsWith(prefix)).map((t) => t.slice(prefix.length));
+const categories = [...new Set(works.flatMap((e) => categoriesOf(e.data.tags)))];
+
+// 年ごとにまとめる
+const byYear = new Map<string, typeof works>();
+for (const e of works) {
+  const y = e.data.publishedAt?.slice(0, 4) ?? "—";
+  if (!byYear.has(y)) byYear.set(y, []);
+  byYear.get(y)!.push(e);
+}
+---
+<Layout title={info.ja} description={info.intro} hideToc>
+  <article class="works" data-pagefind-body>
+    <SectionHeader en={info.en} title={info.ja} lead={info.intro} />
+
+    {categories.length > 0 && (
+      <div class="works-filters" role="group" aria-label="絞り込み" data-pagefind-ignore>
+        <button type="button" class="works-filter is-active" data-filter="">すべて</button>
+        {categories.map((c) => <button type="button" class="works-filter" data-filter={c}>{c}</button>)}
+      </div>
+    )}
+
+    {works.length === 0 && <p class="works-empty">まだ活動が登録されていません。</p>}
+
+    {[...byYear.entries()].map(([year, items]) => (
+      <section class="works-year">
+        <h2>{year}</h2>
+        <ul class="card-grid">
+          {items.map((entry) => <Card entry={entry} cats={categoriesOf(entry.data.tags)} />)}
+        </ul>
+      </section>
+    ))}
+  </article>
+</Layout>
+
+<script>
+  const buttons = document.querySelectorAll<HTMLButtonElement>(".works-filter");
+  buttons.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const f = btn.dataset.filter ?? "";
+      buttons.forEach((b) => b.classList.toggle("is-active", b === btn));
+      document.querySelectorAll<HTMLElement>(".works-year li[data-cats]").forEach((el) => {
+        const show = !f || (el.dataset.cats ?? "").includes(`|${f}|`);
+        el.style.display = show ? "" : "none";
+      });
+      document.querySelectorAll<HTMLElement>(".works-year").forEach((sec) => {
+        const any = [...sec.querySelectorAll<HTMLElement>("li[data-cats]")].some((el) => el.style.display !== "none");
+        sec.style.display = any ? "" : "none";
+      });
+    });
+  });
+</script>
+
+<style>
+  .works-filters { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: -1rem 0 2rem; }
+  .works-filter {
+    padding: 0.3rem 0.9rem;
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    background: var(--color-bg);
+    color: var(--color-text-soft);
+    font: inherit;
+    font-size: 0.85rem;
+    cursor: pointer;
+  }
+  .works-filter.is-active { background: var(--color-accent); border-color: var(--color-accent); color: #fff; }
+  .works-year { margin-bottom: 2.5rem; }
+  .works-year h2 {
+    font-family: "Oswald", var(--font-display);
+    font-size: 1.15rem;
+    letter-spacing: 0.08em;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--color-border);
+    margin-bottom: 1.25rem;
+  }
+  .works-empty { color: var(--color-text-muted); }
+</style>

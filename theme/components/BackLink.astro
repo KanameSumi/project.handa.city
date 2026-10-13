@@ -1,0 +1,36 @@
+---
+// HAnDA: 詳細ページ（メンバー・ブログ記事・活動）の左上に出す「一覧へ戻る」リンク。
+interface Props {
+  back?: { href: string; label: string; en?: string };
+}
+const { back } = Astro.props;
+---
+{back && (
+  <nav class="back-link" aria-label="一覧へ戻る" data-pagefind-ignore>
+    <a href={back.href}><span aria-hidden="true">←</span> {back.label}</a>
+  </nav>
+)}
+
+<style>
+  .back-link {
+    margin: 0 0 1.25rem;
+  }
+  .back-link a {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.3rem 0.75rem 0.3rem 0.55rem;
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    font-size: 0.85rem;
+    color: var(--color-text-soft);
+    text-decoration: none;
+    transition: background 0.15s var(--ease), color 0.15s var(--ease), border-color 0.15s var(--ease);
+  }
+  .back-link a:hover {
+    background: var(--color-accent-soft);
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+    text-decoration: none;
+  }
+</style>

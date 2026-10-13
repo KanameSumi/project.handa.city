@@ -1,0 +1,59 @@
+---
+// HAnDA: 各一覧ページ・固定ページの先頭に出す共通の見出し。
+// 小さな英語ラベル（赤）＋ 大きな日本語タイトル ＋ 説明文。
+// Members / Blog / Works / Contact / About で同じ見た目になる。
+interface Props {
+  en?: string;
+  title: string;
+  lead?: string;
+  /** トップページ内で使うとき（h1 ではなく h2 にする） */
+  as?: "h1" | "h2";
+}
+const { en, title, lead, as = "h1" } = Astro.props;
+const Tag = as;
+const showEn = en && en !== title;
+---
+<header class:list={["section-header", { "is-sub": as === "h2" }]}>
+  {showEn && <p class="section-eyebrow">{en}</p>}
+  <Tag class="section-title">{title}</Tag>
+  {lead && <p class="section-lead">{lead}</p>}
+</header>
+
+<style>
+  .section-header {
+    margin: 0.5rem 0 2.5rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--color-divider);
+  }
+  .section-header.is-sub {
+    margin: 0 0 1.5rem;
+    padding-bottom: 1rem;
+  }
+  .section-eyebrow {
+    margin: 0 0 0.35rem;
+    font-family: "Oswald", var(--font-display);
+    font-size: 0.95rem;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--color-accent);
+  }
+  .section-title {
+    margin: 0;
+    font-size: 2.25rem;
+    line-height: 1.25;
+  }
+  .is-sub .section-title {
+    font-size: 1.6rem;
+  }
+  .section-lead {
+    margin: 0.75rem 0 0;
+    color: var(--color-text-muted);
+    font-size: 1rem;
+    line-height: 1.7;
+  }
+  @media (max-width: 720px) {
+    .section-title { font-size: 1.85rem; }
+    .is-sub .section-title { font-size: 1.4rem; }
+  }
+</style>

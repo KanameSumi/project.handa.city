@@ -1,0 +1,98 @@
+import { createReadStream, existsSync, statSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import type { AstroIntegration } from "astro";
+// HAnDA: テーマを theme/ に置くと設定ファイル経由で読み込まれるため、動的 import ではなく
+// ここで静的に読み込む（ビルド終了時には動的 import が使えない）。
+import { createIndex } from "pagefind";
+
+// Full-text search via Pagefind. We build the index from the static HTML at
+// `astro:build:done` (Pagefind's Node API) and write it to dist/pagefind/, and
+// in dev we serve a previously built bundle so the search box works after at
+// least one build. This is inlined rather than using the astro-pagefind
+// package because that package ships raw .ts under node_modules, which Astro's
+// config loader can't type-strip (Node refuses to strip types in node_modules).
+
+const MIME: Record<string, string> = {
+  ".js": "text/javascript",
+  ".css": "text/css",
+  ".json": "application/json",
+  ".wasm": "application/wasm",
+};
+
+export function pagefindIntegration(): AstroIntegration {
+  let outDir: string | undefined;
+  // Base path with a guaranteed trailing slash ("/" or "/repo/"), used to match
+  // dev requests that Astro serves under the configured base.
+  let base = "/";
+
+  return {
+    name: "cosense-theme-default/pagefind",
+    hooks: {
+      "astro:config:setup": ({ config }) => {
+        outDir = fileURLToPath(config.outDir);
+        base = config.base.endsWith("/") ? config.base : `${config.base}/`;
+      },
+
+      // Dev convenience: serve <outDir>/pagefind/* (from a prior build) so the
+      // search box returns results in `astro dev` without wiring a separate
+      // server. No build has its own index, so this is stale until you rebuild.
+      "astro:server:setup": ({ server }) => {
+        server.middlewares.use((req, res, next) => {
+          if (!req.url || !outDir) return next();
+          const reqPath = req.url.split("?")[0] ?? "";
+          // Vite strips the configured base from req.url, but a request can also
+          // arrive base-prefixed depending on the setup — accept both forms.
+          let rel: string | null = null;
+          if (reqPath.startsWith(`${base}pagefind/`)) rel = reqPath.slice(base.length);
+          else if (reqPath.startsWith("/pagefind/")) rel = reqPath.slice(1);
+          if (rel === null) return next();
+          let decoded: string;
+          try {
+            decoded = decodeURIComponent(rel);
+          } catch {
+            // Malformed percent-encoding (e.g. "%ZZ") — not a path we serve.
+            return next();
+          }
+          // Contain path traversal to the output directory. A bare prefix check
+          // (file.startsWith(outDir)) would also admit a sibling directory like
+          // "<outDir>2", so normalize and require an exact match or a
+          // separator-bounded descendant.
+          const root = outDir.replace(/[/\\]+$/, "");
+          const file = path.resolve(root, decoded);
+          if (
+            (file !== root && !file.startsWith(root + path.sep)) ||
+            !existsSync(file) ||
+            !statSync(file).isFile()
+          ) {
+            return next();
+          }
+          res.setHeader("content-type", MIME[path.extname(file)] ?? "application/octet-stream");
+          createReadStream(file).pipe(res);
+        });
+      },
+
+      "astro:build:done": async ({ dir, logger }) => {
+        const target = fileURLToPath(dir);
+        const { index, errors } = await createIndex();
+        if (!index) {
+          logger.error(
+            `Pagefind: failed to create index${errors.length ? `: ${errors.join(", ")}` : ""}`,
+          );
+          return;
+        }
+        const added = await index.addDirectory({ path: target });
+        if (added.errors.length) {
+          logger.error(`Pagefind: failed to index files: ${added.errors.join(", ")}`);
+          return;
+        }
+        const written = await index.writeFiles({ outputPath: path.join(target, "pagefind") });
+        if (written.errors.length) {
+          logger.error(`Pagefind: failed to write index: ${written.errors.join(", ")}`);
+          return;
+        }
+        logger.info(`Pagefind: indexed ${added.page_count} page(s) → /pagefind/`);
+      },
+    },
+  };
+}

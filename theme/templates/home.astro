@@ -1,0 +1,265 @@
+---
+// HAnDA: トップページ。
+// ロゴと説明文のあと、.site の nav の順番どおりに各セクションの概要を並べる。
+//   about   … .site home.page のページ本文をそのまま表示
+//   blog    … 最新 3 件のカード
+//   works   … 最新 3 件のカード
+//   members … 一覧ページへのリンクだけ
+//   contact … 研究室と SNS のリンク
+//   page    … 1 行目の要約とリンク
+// nav が空のときは、テーマ本来の「最近のページ一覧」を出す。
+import { getCollection } from "astro:content";
+import site from "virtual:cosense-site-kit/site";
+import { hasTag } from "@cosense-site-kit/theme-utils";
+import PageContent from "@cosense-site-kit/theme-utils/components/PageContent.astro";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
+import Card from "../components/Card.astro";
+import EntryCard from "../components/EntryCard.astro";
+import HeroSlides from "../components/HeroSlides.astro";
+import Layout from "../components/Layout.astro";
+import SectionHeader from "../components/SectionHeader.astro";
+import { parseContact } from "../lib/contact";
+import { byNewest, loadSections, postsTag, sectionInfo, worksTag } from "../lib/sections";
+import { loadSlides } from "../lib/slides";
+
+const HOME_CARDS = 3;
+
+const all = (await getCollection("pages")).sort(byNewest);
+const sections = await loadSections();
+const pTag = await postsTag();
+const wTag = await worksTag();
+const posts = pTag ? all.filter((e) => hasTag(e.data.tags, pTag)) : [];
+const works = all.filter((e) => hasTag(e.data.tags, wTag));
+const intros = {
+  blog: (await sectionInfo("blog")).intro,
+  works: (await sectionInfo("works")).intro,
+  members: (await sectionInfo("members")).intro,
+};
+
+const contactOf = new Map(
+  sections.filter((s) => s.kind === "contact" && s.entry).map((s) => [s.href, parseContact(s.entry!)]),
+);
+
+const siteTitle = site?.title ?? "Home";
+const siteDescription = site?.description;
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+// トップのスライド写真（Cosense の「トップ写真」ページ）。無ければ大きなロゴを出す
+const slides = await loadSlides();
+const heroLogo = existsSync(join(process.cwd(), "public", "logo-full.png")) ? `${base}/logo-full.png` : undefined;
+---
+<Layout title={siteTitle} description={siteDescription} hideToc>
+  {/* トップでは、大きなロゴが見えている間はヘッダーの小さいロゴを隠す（重複して見えないように）。
+      下にスクロールして大きなロゴが画面から消えると、ヘッダーのロゴがふわっと出る。 */}
+  {slides.length > 0 ? (
+    <section class="hero has-slides">
+      <h1 class="visually-hidden">{siteTitle}</h1>
+      <HeroSlides slides={slides} caption={siteDescription} />
+    </section>
+  ) : (
+    <Fragment>
+      <script is:inline>document.documentElement.classList.add("is-home", "hero-visible");</script>
+      <section class="hero">
+        {heroLogo ? <h1 class="hero-logo"><img src={heroLogo} alt={siteTitle} /></h1> : <h1 class="hero-title">{siteTitle}</h1>}
+        {siteDescription && <p class="hero-desc">{siteDescription}</p>}
+      </section>
+    </Fragment>
+  )}
+
+  {sections.length === 0 && (
+    <section class="recent-pages">
+      <h2>Recent pages</h2>
+      <ul>{all.slice(0, 20).map((entry) => <EntryCard entry={entry} />)}</ul>
+    </section>
+  )}
+
+  {sections.map((s) => (
+    <section class:list={["home-section", `is-${s.kind}`]}>
+      {s.kind === "about" && s.entry && (
+        <Fragment>
+          <SectionHeader as="h2" en={s.en} title={s.entry.data.title} />
+          <div class="about-body"><PageContent blocks={s.entry.data.blocks} /></div>
+        </Fragment>
+      )}
+
+      {s.kind === "blog" && (
+        <Fragment>
+          <SectionHeader as="h2" en={s.en} title={s.ja} lead={intros.blog} />
+          {posts.length > 0
+            ? <ul class="card-grid">{posts.slice(0, HOME_CARDS).map((e) => <Card entry={e} />)}</ul>
+            : <p class="home-empty">まだ記事がありません。</p>}
+          <a class="more-link" href={s.href}>{s.ja}一覧へ <span aria-hidden="true">→</span></a>
+        </Fragment>
+      )}
+
+      {s.kind === "works" && (
+        <Fragment>
+          <SectionHeader as="h2" en={s.en} title={s.ja} lead={intros.works} />
+          {works.length > 0
+            ? <ul class="card-grid">{works.slice(0, HOME_CARDS).map((e) => <Card entry={e} />)}</ul>
+            : <p class="home-empty">まだ活動が登録されていません。</p>}
+          <a class="more-link" href={s.href}>{s.ja}一覧へ <span aria-hidden="true">→</span></a>
+        </Fragment>
+      )}
+
+      {s.kind === "members" && (
+        <a class="home-banner" href={s.href}>
+          <span class="home-banner-en">{s.en}</span>
+          <span class="home-banner-ja">{s.ja}</span>
+          {intros.members && <span class="home-banner-lead">{intros.members}</span>}
+          <span class="home-banner-arrow" aria-hidden="true">→</span>
+        </a>
+      )}
+
+      {s.kind === "contact" && s.entry && (
+        <Fragment>
+          <SectionHeader as="h2" en={s.en} title={s.entry.data.title} />
+          {(contactOf.get(s.href)?.accounts.length ?? 0) > 0 && (
+            <ul class="home-accounts">
+              {contactOf.get(s.href)!.accounts.map((a) => (
+                <li>
+                  {a.url
+                    ? <a class:list={["home-account", `is-${a.service.toLowerCase()}`]} href={a.url} target="_blank" rel="noopener noreferrer"><b>{a.service}</b>{a.handle && <span>@{a.handle}</span>}<span aria-hidden="true">↗</span></a>
+                    : <span class:list={["home-account", "is-pending", `is-${a.service.toLowerCase()}`]}><b>{a.service}</b><span>準備中</span></span>}
+                </li>
+              ))}
+              {contactOf.get(s.href)?.mail?.href && (
+                <li><a class="home-account is-mail" href={contactOf.get(s.href)!.mail!.href}><b>Mail</b><span>メールで問い合わせ</span></a></li>
+              )}
+            </ul>
+          )}
+          <a class="more-link" href={s.href}>{s.entry.data.title}へ <span aria-hidden="true">→</span></a>
+        </Fragment>
+      )}
+
+      {s.kind === "page" && s.entry && (
+        <Fragment>
+          <SectionHeader as="h2" en={s.en} title={s.entry.data.title} lead={s.entry.data.summary} />
+          <a class="more-link" href={s.href}>詳しく見る <span aria-hidden="true">→</span></a>
+        </Fragment>
+      )}
+    </section>
+  ))}
+</Layout>
+
+<script>
+  const hero = document.querySelector(".hero:not(.has-slides)");
+  const root = document.documentElement;
+  if (hero && "IntersectionObserver" in window) {
+    new IntersectionObserver(
+      ([e]) => root.classList.toggle("hero-visible", e.isIntersecting),
+      { rootMargin: "-80px 0px 0px 0px" },
+    ).observe(hero);
+  } else if (hero) {
+    root.classList.remove("hero-visible");
+  }
+</script>
+
+<style is:global>
+  html.is-home .site-brand {
+    transition: opacity 0.35s var(--ease), transform 0.35s var(--ease);
+  }
+  html.is-home.hero-visible .site-brand {
+    opacity: 0;
+    transform: translateY(-6px);
+    pointer-events: none;
+  }
+</style>
+
+<style>
+  /* スライドがあるときは、白いパネルの端から端まで写真を広げる */
+  .hero.has-slides {
+    max-width: none;
+    margin: -5rem -3.5rem 1rem;
+    padding: 0;
+    border-bottom: none;
+  }
+  .visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  @media (max-width: 720px) {
+    .hero.has-slides { margin: -2.5rem -1.25rem 0.5rem; }
+  }
+  .hero {
+    padding: 1.5rem 0 3rem;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid var(--color-divider);
+  }
+  .hero-logo { margin: 0; line-height: 0; }
+  .hero-logo img { width: min(100%, 560px); height: auto; }
+  .hero-title { margin: 0; font-size: 2.5rem; }
+  .hero-desc {
+    margin: 1.5rem 0 0;
+    font-size: 1.05rem;
+    line-height: 1.8;
+    color: var(--color-text-soft);
+  }
+
+  .home-section { padding: 3rem 0; border-bottom: 1px solid var(--color-divider); }
+  .home-section:last-child { border-bottom: none; }
+  .home-section.is-link { display: none; }
+  .home-empty { color: var(--color-text-muted); }
+
+  /* メンバー：リンクだけの控えめなカード */
+  .home-banner {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    padding: 1.25rem 3.5rem 1.25rem 1.5rem;
+    border: 1px solid var(--color-border);
+    border-left: 4px solid var(--color-accent);
+    border-radius: 10px;
+    background: var(--color-bg);
+    color: var(--color-text);
+    text-decoration: none;
+    transition: border-color 0.15s var(--ease), background 0.15s var(--ease);
+  }
+  .home-banner:hover { text-decoration: none; border-color: var(--color-accent); background: var(--color-accent-soft); }
+  .home-banner-en {
+    font-family: "Oswald", var(--font-display);
+    font-size: 0.85rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--color-accent);
+  }
+  .home-banner-ja { font-family: var(--font-display); font-size: 1.3rem; font-weight: 700; letter-spacing: 0.06em; }
+  .home-banner-lead { font-size: 0.85rem; color: var(--color-text-muted); }
+  .home-banner-arrow {
+    position: absolute;
+    right: 1.25rem;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 1.4rem;
+    color: var(--color-accent);
+    transition: transform 0.15s var(--ease);
+  }
+  .home-banner:hover .home-banner-arrow { transform: translate(4px, -50%); }
+
+  /* お問い合わせの概要：SNS アカウントのボタン */
+  .home-accounts { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0.75rem; }
+  .home-account {
+    --c: var(--color-accent);
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    padding: 0.7rem 1.2rem;
+    border-radius: 999px;
+    background: var(--c);
+    color: #fff;
+    font-size: 0.9rem;
+    text-decoration: none;
+    transition: transform 0.15s var(--ease), filter 0.15s var(--ease);
+  }
+  .home-account.is-x { --c: #1d1d22; }
+  .home-account.is-tiktok { --c: #1658a0; }
+  .home-account.is-mail { --c: var(--color-bg); color: var(--color-text); border: 1.5px solid var(--color-text); }
+  a.home-account:hover { text-decoration: none; transform: translateY(-2px); filter: brightness(1.08); }
+  .home-account.is-pending { opacity: 0.45; }
+  .home-account b { font-family: "Oswald", var(--font-sans); font-size: 1.05rem; letter-spacing: 0.06em; text-transform: uppercase; }
+</style>
