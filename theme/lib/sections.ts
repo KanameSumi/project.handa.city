@@ -114,3 +114,23 @@ export async function backLinkFor(tags: string[]) {
   }
   return undefined;
 }
+
+/** そのページが活動・成果（#works）のページか */
+export async function isWorksPage(entry: CollectionEntry<"pages">): Promise<boolean> {
+  return hasTag(entry.data.tags, await worksTag());
+}
+
+/**
+ * メンバーが関わった活動・成果のページ一覧。
+ * 活動ページ側でメンバー名をリンク（[山田太郎]）しているか、
+ * メンバーページ側で活動名をリンク（[マイクラで再現した赤レンガ建物]）していれば関わったとみなす。
+ */
+export async function worksForMember(member: CollectionEntry<"pages">): Promise<CollectionEntry<"pages">[]> {
+  const tag = await worksTag();
+  const key = (t: string) => t.trim().toLowerCase();
+  const back = new Set(member.data.backlinks.map(key));
+  const out = new Set(member.data.links.map(key));
+  return (await getCollection("pages"))
+    .filter((e) => hasTag(e.data.tags, tag) && (back.has(key(e.data.title)) || out.has(key(e.data.title))))
+    .sort(byNewest);
+}

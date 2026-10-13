@@ -8,7 +8,7 @@ import Related from "@cosense-site-kit/theme-utils/components/Related.astro";
 import BackLink from "../components/BackLink.astro";
 import Layout from "../components/Layout.astro";
 import SectionHeader from "../components/SectionHeader.astro";
-import { backLinkFor, loadSections } from "../lib/sections";
+import { backLinkFor, isWorksPage, loadSections } from "../lib/sections";
 
 interface Props {
   entry: CollectionEntry<"pages">;
@@ -33,6 +33,8 @@ const morphName = page.image ? vtName(page.slug) : undefined;
 // HAnDA: ナビに載っているページは共通見出し、詳細ページは一覧へ戻るリンク
 const navSection = (await loadSections()).find((s) => s.entry?.data.slug === page.slug);
 const back = await backLinkFor(page.tags);
+// 活動・成果のページは日付を出さない
+const isWorks = await isWorksPage(entry);
 ---
 <Layout title={page.title} description={page.summary} image={page.image} ogType="article">
   <article data-pagefind-body>
@@ -46,10 +48,12 @@ const back = await backLinkFor(page.tags);
           pairs detail page → detail page; list headers ("Posts", "#tag") don't
           carry it, avoiding a flickery text-to-text cross-fade on list → detail. */}
       <h1 style="view-transition-name: page-title">{page.title}</h1>
-      <PageMeta
-        tags={page.tags}
-        publishedAt={page.publishedAt}
-      />
+      {!isWorks && (
+        <PageMeta
+          tags={page.tags}
+          publishedAt={page.publishedAt}
+        />
+      )}
     </header>
     )}
 

@@ -5,7 +5,7 @@
 //   - タイトル = 活動・成果物の名前
 //   - 本文 1 行目 = 一言説明 → カードの説明文になる
 //   - 写真を貼ると最初の 1 枚がカード画像になる
-//   - タグ: #publish #works  （日付を指定したいときは #published/2026-08-01）
+//   - タグ: #publish #works  （日付は表示しない。並び順に使いたいときは #published/2026-08-01）
 //   - 種類で分けたいときは #works/3D などを足すと絞り込みボタンが出る
 import { getCollection } from "astro:content";
 import { hasTag } from "@cosense-site-kit/theme-utils";
@@ -24,13 +24,6 @@ const categoriesOf = (tags: string[]) =>
   tags.filter((t) => t.toLowerCase().startsWith(prefix)).map((t) => t.slice(prefix.length));
 const categories = [...new Set(works.flatMap((e) => categoriesOf(e.data.tags)))];
 
-// 年ごとにまとめる
-const byYear = new Map<string, typeof works>();
-for (const e of works) {
-  const y = e.data.publishedAt?.slice(0, 4) ?? "—";
-  if (!byYear.has(y)) byYear.set(y, []);
-  byYear.get(y)!.push(e);
-}
 ---
 <Layout title={info.ja} description={info.intro} hideToc>
   <article class="works" data-pagefind-body>
@@ -45,14 +38,9 @@ for (const e of works) {
 
     {works.length === 0 && <p class="works-empty">まだ活動が登録されていません。</p>}
 
-    {[...byYear.entries()].map(([year, items]) => (
-      <section class="works-year">
-        <h2>{year}</h2>
-        <ul class="card-grid">
-          {items.map((entry) => <Card entry={entry} cats={categoriesOf(entry.data.tags)} />)}
-        </ul>
-      </section>
-    ))}
+    <ul class="card-grid works-grid">
+      {works.map((entry) => <Card entry={entry} cats={categoriesOf(entry.data.tags)} showDate={false} />)}
+    </ul>
   </article>
 </Layout>
 
@@ -62,14 +50,11 @@ for (const e of works) {
     btn.addEventListener("click", () => {
       const f = btn.dataset.filter ?? "";
       buttons.forEach((b) => b.classList.toggle("is-active", b === btn));
-      document.querySelectorAll<HTMLElement>(".works-year li[data-cats]").forEach((el) => {
+      document.querySelectorAll<HTMLElement>(".works-grid li[data-cats]").forEach((el) => {
         const show = !f || (el.dataset.cats ?? "").includes(`|${f}|`);
         el.style.display = show ? "" : "none";
       });
-      document.querySelectorAll<HTMLElement>(".works-year").forEach((sec) => {
-        const any = [...sec.querySelectorAll<HTMLElement>("li[data-cats]")].some((el) => el.style.display !== "none");
-        sec.style.display = any ? "" : "none";
-      });
+
     });
   });
 </script>

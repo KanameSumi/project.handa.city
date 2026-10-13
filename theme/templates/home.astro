@@ -96,7 +96,7 @@ const heroLogo = existsSync(join(process.cwd(), "public", "logo-full.png")) ? `$
         <Fragment>
           <SectionHeader as="h2" en={s.en} title={s.ja} lead={intros.works} />
           {works.length > 0
-            ? <ul class="card-grid">{works.slice(0, HOME_CARDS).map((e) => <Card entry={e} />)}</ul>
+            ? <ul class="card-grid">{works.slice(0, HOME_CARDS).map((e) => <Card entry={e} showDate={false} />)}</ul>
             : <p class="home-empty">まだ活動が登録されていません。</p>}
           <a class="more-link" href={s.href}>{s.ja}一覧へ <span aria-hidden="true">→</span></a>
         </Fragment>

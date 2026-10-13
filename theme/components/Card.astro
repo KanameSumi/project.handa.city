@@ -8,8 +8,10 @@ interface Props {
   entry: CollectionEntry<"pages">;
   /** 絞り込み用のカテゴリ（活動・成果ページで使う） */
   cats?: string[];
+  /** 日付を出すか（活動・成果では出さない） */
+  showDate?: boolean;
 }
-const { entry, cats } = Astro.props;
+const { entry, cats, showDate = true } = Astro.props;
 const { slug, image, title, summary, publishedAt } = entry.data;
 ---
 <li class="card" data-cats={cats ? `|${cats.join("|")}|` : undefined}>
@@ -20,7 +22,7 @@ const { slug, image, title, summary, publishedAt } = entry.data;
         : <span class="card-placeholder" aria-hidden="true">{Array.from(title.trim())[0] ?? "·"}</span>}
     </div>
     <div class="card-body">
-      {publishedAt && <time class="card-date" datetime={publishedAt}>{formatDate(publishedAt)}</time>}
+      {showDate && publishedAt && <time class="card-date" datetime={publishedAt}>{formatDate(publishedAt)}</time>}
       <span class="card-title">{title}</span>
       {summary && <span class="card-summary">{summary}</span>}
     </div>
