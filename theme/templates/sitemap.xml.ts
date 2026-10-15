@@ -1,12 +1,7 @@
 import { getCollection } from "astro:content";
 import type { CosenseSitePage } from "@cosense-site-kit/core";
-import {
-  buildSitemap,
-  isPublicTag,
-  loadStructure,
-  path,
-  type SitemapUrl,
-} from "@cosense-site-kit/theme-utils";
+import { buildSitemap, isPublicTag, path, type SitemapUrl } from "@cosense-site-kit/theme-utils";
+import { loadStructure } from "../lib/config";
 import type { APIContext } from "astro";
 
 // /sitemap.xml — every published page plus the home, /posts and tag indexes.

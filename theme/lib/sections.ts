@@ -1,5 +1,5 @@
 // HAnDA: サイトの「セクション」（About / Blog / Works / Members / Contact …）を
-// Cosense の .site の nav から組み立てるヘルパー。
+// handa.config.ts の nav から組み立てるヘルパー。
 //
 // - ラベルは「英語|日本語」で書く（例: "Members|メンバー"）。英語は小さな見出し、
 //   日本語は大きなタイトルとして各ページの先頭に出る。
@@ -8,13 +8,12 @@
 //     href "/works"   → works    （#works タグが付いたページ）
 //     href "/members" → members  （#member/2026 などのタグが付いたページ）
 //     page で、そのページが #template/contact → contact
-//     page で、.site home.page と同じページ → about（トップに全文表示）
+//     page で、handa.config.ts の home.about と同じページ → about（トップに全文表示）
 //     それ以外の page → page（トップに概要表示）
-// - 各一覧ページの説明文は .site の intros で書ける（任意）:
-//     intros:
-//       blog: "活動の様子をお届けします"
+// - 各一覧ページの説明文は handa.config.ts の intros で書く
 import { type CollectionEntry, getCollection } from "astro:content";
-import { hasTag, loadStructure, loadTitleToSlug, navHref } from "@cosense-site-kit/theme-utils";
+import { hasTag, loadTitleToSlug, navHref } from "@cosense-site-kit/theme-utils";
+import { handaConfig, loadStructure } from "./config";
 import { isContactPage } from "./contact";
 
 export type SectionKind = "about" | "blog" | "works" | "members" | "contact" | "page" | "link";
@@ -75,8 +74,7 @@ export async function sectionInfo(kind: "blog" | "works" | "members") {
   const sections = await loadSections();
   const found = sections.find((s) => s.kind === kind);
   const d = DEFAULTS[kind];
-  const structure = (await loadStructure()) as { intros?: Record<string, unknown> };
-  const intro = typeof structure.intros?.[kind] === "string" ? (structure.intros[kind] as string) : undefined;
+  const intro = handaConfig.intros[kind];
   return {
     en: found?.en ?? d.en,
     ja: found?.ja ?? d.ja,
@@ -86,8 +84,7 @@ export async function sectionInfo(kind: "blog" | "works" | "members") {
 }
 
 export async function worksTag(): Promise<string> {
-  const structure = (await loadStructure()) as { works?: { tag?: unknown } };
-  return typeof structure.works?.tag === "string" ? structure.works.tag : "works";
+  return handaConfig.tags.works || "works";
 }
 
 export async function postsTag(): Promise<string | undefined> {

@@ -3,15 +3,14 @@
 // Cosense 側:
 //   - タイトル「トップ写真」のページを作り、写真を上から順に貼る（1 行に 1 枚）
 //   - #publish を付ける（このページ自体はサイトのページとしては公開されない）
-//   - ページ名を変えたいときは .site に  slides: "ページ名"  と書く
+//   - ページ名は handa.config.ts の home.slides で変えられる
 import { type CollectionEntry, getCollection } from "astro:content";
-import { loadStructure } from "@cosense-site-kit/theme-utils";
+import { handaConfig } from "./config";
 
 export const DEFAULT_SLIDES_PAGE = "トップ写真";
 
 export async function slidesPageTitle(): Promise<string> {
-  const s = (await loadStructure()) as { slides?: unknown };
-  return typeof s.slides === "string" && s.slides.trim() ? s.slides.trim() : DEFAULT_SLIDES_PAGE;
+  return handaConfig.home.slides?.trim() || DEFAULT_SLIDES_PAGE;
 }
 
 /** そのページがスライド用ページか（通常のページとしては出さない） */

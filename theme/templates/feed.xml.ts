@@ -1,13 +1,8 @@
 import { getCollection } from "astro:content";
 import site from "virtual:cosense-site-kit/site";
 import type { CosenseSitePage } from "@cosense-site-kit/core";
-import {
-  buildRssFeed,
-  type FeedItem,
-  hasTag,
-  loadStructure,
-  path,
-} from "@cosense-site-kit/theme-utils";
+import { buildRssFeed, type FeedItem, hasTag, path } from "@cosense-site-kit/theme-utils";
+import { loadStructure } from "../lib/config";
 import type { APIContext } from "astro";
 
 // /feed.xml — RSS 2.0 of the posts (the `.site` posts tag), newest first. When

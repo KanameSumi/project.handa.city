@@ -1,42 +1,6 @@
-import { readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
 import { defineCosenseSite } from "@cosense-site-kit/core";
-import { parse as parseYaml } from "yaml";
-
-// サイト名・説明文も Cosense の `.site` ページから読む（コード編集不要にするため）。
-//   code:site.yaml
-//    site:
-//      title: "HAnDA Project"
-//      description: "..."
-// `npm run fetch` で取得済みのキャッシュから読み、無ければ下のフォールバックを使う。
-function readSiteMeta(): { title?: string; description?: string } {
-  try {
-    const root = ".cosense-cache/pages";
-    for (const dir of readdirSync(root)) {
-      for (const file of readdirSync(join(root, dir))) {
-        const page = JSON.parse(readFileSync(join(root, dir, file), "utf8"));
-        if (page.title !== ".site") continue;
-        const lines: string[] = page.text.split("\n");
-        const start = lines.findIndex((l) => /^code:site\.ya?ml$/.test(l.trim()));
-        if (start === -1) return {};
-        const body: string[] = [];
-        for (const l of lines.slice(start + 1)) {
-          if (!/^[ \t]/.test(l)) break;
-          body.push(l.slice(1));
-        }
-        const site = parseYaml(body.join("\n"))?.site ?? {};
-        return {
-          title: typeof site.title === "string" ? site.title : undefined,
-          description: typeof site.description === "string" ? site.description : undefined,
-        };
-      }
-    }
-  } catch {
-    // キャッシュ未取得など。フォールバックを使う。
-  }
-  return {};
-}
-const meta = readSiteMeta();
+// サイト名・説明文は handa.config.ts で管理（Cosense の .site は使わない）
+import handa from "./handa.config";
 
 // Per-site values are NOT hard-coded here, so a copy of this template needs
 // no code edits to be pointed at your own site:
@@ -66,8 +30,8 @@ if (!project) {
 
 export default defineCosenseSite({
   site: {
-    title: meta.title ?? "HAnDA Project",
-    description: meta.description ?? "A site published from Cosense",
+    title: handa.site.title,
+    description: handa.site.description,
     baseUrl: process.env.PAGES_ORIGIN || "http://localhost:4321",
     base: process.env.PAGES_BASE_PATH || "/",
     lang: "ja",
