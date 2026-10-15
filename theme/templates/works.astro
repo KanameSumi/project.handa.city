@@ -12,6 +12,8 @@ import { hasTag } from "@cosense-site-kit/theme-utils";
 import Card from "../components/Card.astro";
 import Layout from "../components/Layout.astro";
 import SectionHeader from "../components/SectionHeader.astro";
+import BackLink from "../components/BackLink.astro";
+import { homeBack } from "../lib/sections";
 import { byNewest, sectionInfo, worksTag } from "../lib/sections";
 
 const info = await sectionInfo("works");
@@ -27,6 +29,7 @@ const categories = [...new Set(works.flatMap((e) => categoriesOf(e.data.tags)))]
 ---
 <Layout title={info.ja} description={info.intro} hideToc>
   <article class="works" data-pagefind-body>
+    <BackLink back={homeBack()} />
     <SectionHeader en={info.en} title={info.ja} lead={info.intro} />
 
     {categories.length > 0 && (

@@ -23,6 +23,17 @@ export const handaConfig = config as unknown as {
   copyright: { holder: string };
   policies: Policy[];
   policyOwner?: string;
+  contact: {
+    /** 紹介文と SNS アカウントを書く Cosense のページ名（単独ページとしては公開されない） */
+    page?: string;
+    title: string;
+    en?: string;
+    intro?: string;
+    accounts?: { service: string; handle?: string; url?: string }[];
+    mail?: { address?: string; subject?: string; body?: string };
+    pickups?: { service: string; label?: string; url: string }[];
+    lab?: { name: string; org?: string; url?: string };
+  };
 };
 
 /** テーマが期待する「サイト構造」の形に変換したもの（もとは .site から作られていた） */

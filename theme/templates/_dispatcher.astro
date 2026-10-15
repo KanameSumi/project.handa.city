@@ -2,12 +2,11 @@
 import type { CollectionEntry } from "astro:content";
 import { pagePaths } from "@cosense-site-kit/theme-utils";
 import Collection from "./collection.astro";
-import Contact from "./contact.astro";
 import Page from "./page.astro";
 import Profile from "./profile.astro";
-import { isContactPage } from "../lib/contact";
 import { MEMBER_TAG } from "../lib/sections";
 import { slidesPageTitle } from "../lib/slides";
+import { handaConfig } from "../lib/config";
 
 // Theme's per-page template registry. Add a new template by importing the
 // .astro file at the top and adding an entry below — the page-level
@@ -17,14 +16,13 @@ const TEMPLATES: Record<string, typeof Page> = {
   page: Page,
   profile: Profile,
   collection: Collection,
-  // HAnDA: お問い合わせページ（#template/contact）
-  contact: Contact,
 };
 
 export async function getStaticPaths() {
   // HAnDA: スライド写真用のページ（トップ写真）は、単独のページとしては出さない
-  const slidesTitle = await slidesPageTitle();
-  return (await pagePaths()).filter((p) => p.props.entry.data.title !== slidesTitle);
+  // お問い合わせ用のページも同様（内容は /contact に表示される）
+  const hidden = new Set([await slidesPageTitle(), handaConfig.contact.page].filter(Boolean));
+  return (await pagePaths()).filter((p) => !hidden.has(p.props.entry.data.title));
 }
 
 const { entry } = Astro.props as { entry: CollectionEntry<"pages"> };
@@ -35,12 +33,9 @@ const { entry } = Astro.props as { entry: CollectionEntry<"pages"> };
 // contract that the registry comment above promises.
 // The inner `?? Page` never fires at runtime (hasOwn guarantees the key);
 // it only narrows away the `undefined` that noUncheckedIndexedAccess adds.
-// HAnDA: code:contact.yaml があるページは、タグが無くてもお問い合わせテンプレートで表示する
 // HAnDA: #member/2026 などが付いたページは、#template/profile が無くてもプロフィール表示（日付なし）
 const isMember = entry.data.tags.some((t) => MEMBER_TAG.test(t));
-const Template = isContactPage(entry)
-  ? Contact
-  : isMember && entry.data.template === "page"
+const Template = isMember && entry.data.template === "page"
   ? Profile
   : Object.hasOwn(TEMPLATES, entry.data.template)
   ? (TEMPLATES[entry.data.template] ?? Page)

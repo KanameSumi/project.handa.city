@@ -19,7 +19,7 @@ import EntryCard from "../components/EntryCard.astro";
 import HeroSlides from "../components/HeroSlides.astro";
 import Layout from "../components/Layout.astro";
 import SectionHeader from "../components/SectionHeader.astro";
-import { parseContact } from "../lib/contact";
+import { loadContact } from "../lib/contact";
 import { byNewest, loadSections, postsTag, sectionInfo, worksTag } from "../lib/sections";
 import { loadSlides } from "../lib/slides";
 
@@ -37,9 +37,7 @@ const intros = {
   members: (await sectionInfo("members")).intro,
 };
 
-const contactOf = new Map(
-  sections.filter((s) => s.kind === "contact" && s.entry).map((s) => [s.href, parseContact(s.entry!)]),
-);
+const contact = await loadContact();
 
 const siteTitle = site?.title ?? "Home";
 const siteDescription = site?.description;
@@ -111,24 +109,23 @@ const heroLogo = existsSync(join(process.cwd(), "public", "logo-full.png")) ? `$
         </a>
       )}
 
-      {s.kind === "contact" && s.entry && (
+      {s.kind === "contact" && (
         <Fragment>
-          <SectionHeader as="h2" en={s.en} title={s.entry.data.title} />
-          {(contactOf.get(s.href)?.accounts.length ?? 0) > 0 && (
+          <SectionHeader as="h2" en={s.en} title={s.ja} href={s.href} />
+          {contact.accounts.length > 0 && (
             <ul class="home-accounts">
-              {contactOf.get(s.href)!.accounts.map((a) => (
+              {contact.accounts.map((a) => (
                 <li>
                   {a.url
                     ? <a class:list={["home-account", `is-${a.service.toLowerCase()}`]} href={a.url} target="_blank" rel="noopener noreferrer"><b>{a.service}</b>{a.handle && <span>@{a.handle}</span>}<span aria-hidden="true">↗</span></a>
                     : <span class:list={["home-account", "is-pending", `is-${a.service.toLowerCase()}`]}><b>{a.service}</b><span>準備中</span></span>}
                 </li>
               ))}
-              {contactOf.get(s.href)?.mail?.href && (
-                <li><a class="home-account is-mail" href={contactOf.get(s.href)!.mail!.href}><b>Mail</b><span>メールで問い合わせ</span></a></li>
+              {contact.mail?.href && (
+                <li><a class="home-account is-mail" href={contact.mail!.href}><b>Mail</b><span>メールで問い合わせ</span></a></li>
               )}
             </ul>
           )}
-          <a class="more-link" href={s.href}>{s.entry.data.title}へ <span aria-hidden="true">→</span></a>
         </Fragment>
       )}
 

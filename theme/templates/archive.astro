@@ -7,6 +7,8 @@ import Card from "../components/Card.astro";
 import Layout from "../components/Layout.astro";
 import Pagination from "../components/Pagination.astro";
 import SectionHeader from "../components/SectionHeader.astro";
+import BackLink from "../components/BackLink.astro";
+import { homeBack } from "../lib/sections";
 import { sectionInfo } from "../lib/sections";
 import { POSTS_PER_PAGE } from "../constants";
 
@@ -57,6 +59,7 @@ const { entries, pageInfo, configured } = Astro.props as {
 const info = await sectionInfo("blog");
 ---
 <Layout title={info.ja} description={info.intro} hideToc>
+  <BackLink back={homeBack()} />
   <SectionHeader en={info.en} title={info.ja} lead={info.intro} />
   {configured ? (
     <section>

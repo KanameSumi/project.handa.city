@@ -1,12 +1,12 @@
 ---
-// HAnDA: 詳細ページ（メンバー・ブログ記事・活動）の左上に出す「一覧へ戻る」リンク。
+// HAnDA: ページ左上に出す戻るリンク。詳細ページ → 各一覧、一覧ページ・概要 → ホーム。
 interface Props {
   back?: { href: string; label: string; en?: string };
 }
 const { back } = Astro.props;
 ---
 {back && (
-  <nav class="back-link" aria-label="一覧へ戻る" data-pagefind-ignore>
+  <nav class="back-link" aria-label="戻る" data-pagefind-ignore>
     <a href={back.href}><span aria-hidden="true">←</span> {back.label}</a>
   </nav>
 )}

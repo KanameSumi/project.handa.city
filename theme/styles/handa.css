@@ -132,3 +132,64 @@ html {
   .site-header-inner { padding-left: 1rem; padding-right: 1rem; }
   .site-main { padding: 2.5rem 1.25rem 4rem; }
 }
+
+/* ---- スマホのメニュー：開閉のモーション ------------------------------------
+   テーマ既定は display の切り替えで一瞬で出るので、上からスッと下りてくる動きにする */
+@media (max-width: 720px) {
+  .site-header.has-js .site-nav-wrap {
+    display: block;
+    visibility: hidden;
+    opacity: 0;
+    transform: translateY(-8px);
+    clip-path: inset(0 0 100% 0);
+    pointer-events: none;
+    transition:
+      clip-path 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+      transform 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 0.2s ease,
+      visibility 0s linear 0.32s;
+  }
+  .site-header.has-js .site-nav-wrap.is-open {
+    visibility: visible;
+    opacity: 1;
+    transform: none;
+    clip-path: inset(0 0 -40px 0); /* 下の影は切らない */
+    pointer-events: auto;
+    transition:
+      clip-path 0.36s cubic-bezier(0.22, 1, 0.36, 1),
+      transform 0.36s cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 0.2s ease,
+      visibility 0s;
+  }
+  /* 項目が少しずつ遅れて出てくる */
+  .site-header.has-js .site-nav li {
+    opacity: 0;
+    transform: translateY(-6px);
+    transition: opacity 0.2s ease, transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .site-header.has-js .site-nav-wrap.is-open li { opacity: 1; transform: none; }
+  .site-header.has-js .site-nav-wrap.is-open li:nth-child(1) { transition-delay: 0.04s; }
+  .site-header.has-js .site-nav-wrap.is-open li:nth-child(2) { transition-delay: 0.08s; }
+  .site-header.has-js .site-nav-wrap.is-open li:nth-child(3) { transition-delay: 0.12s; }
+  .site-header.has-js .site-nav-wrap.is-open li:nth-child(4) { transition-delay: 0.16s; }
+  .site-header.has-js .site-nav-wrap.is-open li:nth-child(5) { transition-delay: 0.2s; }
+  .site-header.has-js .site-nav-wrap.is-open li:nth-child(n + 6) { transition-delay: 0.24s; }
+
+  /* ハンバーガー（三本線）→ ✕ に変わる */
+  .site-nav-toggle .bar {
+    transform-box: fill-box;
+    transform-origin: center;
+    transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.2s ease;
+  }
+  .site-nav-toggle[aria-expanded="true"] .bar-1 { transform: translateY(6px) rotate(45deg); }
+  .site-nav-toggle[aria-expanded="true"] .bar-2 { opacity: 0; }
+  .site-nav-toggle[aria-expanded="true"] .bar-3 { transform: translateY(-6px) rotate(-45deg); }
+
+  /* スマホではスライド写真のズームを止めて軽くする（フェードだけ） */
+  .hero-slide, .hero-slide.is-active { transform: none !important; transition: opacity 1.2s ease !important; }
+}
+@media (max-width: 720px) and (prefers-reduced-motion: reduce) {
+  .site-header.has-js .site-nav-wrap,
+  .site-header.has-js .site-nav li,
+  .site-nav-toggle .bar { transition: none !important; }
+}

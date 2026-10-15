@@ -13,13 +13,15 @@ interface Props {
 }
 const { entry, cats, showDate = true } = Astro.props;
 const { slug, image, title, summary, publishedAt } = entry.data;
+// 画像が無いときはロゴ（ロゴセットの丸型2 を切り抜いたもの：public/card-placeholder.png）を小さく出す
+const placeholderSrc = `${import.meta.env.BASE_URL.replace(/\/$/, "")}/card-placeholder.png`;
 ---
 <li class="card" data-cats={cats ? `|${cats.join("|")}|` : undefined}>
   <a href={path(slug)} class="card-link">
     <div class="card-thumb" style={image ? `view-transition-name:${vtName(slug)}` : undefined}>
       {image
         ? <img src={image} alt="" loading="lazy" decoding="async" />
-        : <span class="card-placeholder" aria-hidden="true">{Array.from(title.trim())[0] ?? "·"}</span>}
+        : <img class="card-placeholder" src={placeholderSrc} alt="" aria-hidden="true" loading="lazy" decoding="async" />}
     </div>
     <div class="card-body">
       {showDate && publishedAt && <time class="card-date" datetime={publishedAt}>{formatDate(publishedAt)}</time>}
@@ -37,6 +39,9 @@ const { slug, image, title, summary, publishedAt } = entry.data;
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
     gap: 1.25rem;
+  }
+  @media (max-width: 540px) {
+    .card-grid { grid-template-columns: 1fr; gap: 0.75rem; }
   }
 </style>
 <style>
@@ -70,10 +75,11 @@ const { slug, image, title, summary, publishedAt } = entry.data;
     height: 100%;
     object-fit: cover;
   }
-  .card-placeholder {
-    font-family: var(--font-display);
-    font-size: 2.25rem;
-    color: var(--color-text-faint);
+  .card-thumb img.card-placeholder {
+    width: auto;
+    height: 2.6rem;
+    opacity: 0.9;
+    object-fit: contain;
   }
   .card-body {
     display: flex;
@@ -99,5 +105,42 @@ const { slug, image, title, summary, publishedAt } = entry.data;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
+  }
+
+  /* スマホ：横並びの短いカード（左に小さい画像、右に文字） */
+  @media (max-width: 540px) {
+    .card-link {
+      flex-direction: row;
+      align-items: stretch;
+    }
+    .card-link:hover { transform: none; }
+    .card-thumb {
+      flex: 0 0 34%;
+      max-width: 8.5rem;
+      aspect-ratio: auto;
+      min-height: 5.75rem;
+    }
+    .card-thumb img.card-placeholder { height: 1.9rem; }
+    .card-body {
+      flex: 1;
+      min-width: 0;
+      justify-content: center;
+      gap: 0.2rem;
+      padding: 0.65rem 0.85rem;
+    }
+    .card-date { font-size: 0.72rem; }
+    .card-title {
+      font-size: 0.95rem;
+      line-height: 1.4;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .card-summary {
+      font-size: 0.78rem;
+      line-height: 1.5;
+      -webkit-line-clamp: 1;
+    }
   }
 </style>

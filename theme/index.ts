@@ -130,6 +130,7 @@ export default function themeDefault(opts: ThemeDefaultOptions = {}): AstroInteg
         // HAnDA: タグ付きページを自動で集める一覧ページ
         injectRoute({ pattern: "/members", entrypoint: here("templates/members.astro") });
         injectRoute({ pattern: "/works", entrypoint: here("templates/works.astro") });
+        injectRoute({ pattern: "/contact", entrypoint: here("templates/contact.astro") });
         // HAnDA: ポリシーページ（/privacy など。内容は handa.config.ts）
         injectRoute({ pattern: "/[policy]", entrypoint: here("templates/policy.astro") });
         // SEO / discovery endpoints (XML/text, not pages).

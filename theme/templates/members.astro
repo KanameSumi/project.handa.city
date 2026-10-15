@@ -12,6 +12,8 @@ import { getCollection } from "astro:content";
 import { path } from "@cosense-site-kit/theme-utils";
 import Layout from "../components/Layout.astro";
 import SectionHeader from "../components/SectionHeader.astro";
+import BackLink from "../components/BackLink.astro";
+import { homeBack } from "../lib/sections";
 import { MEMBER_TAG, sectionInfo } from "../lib/sections";
 
 const info = await sectionInfo("members");
@@ -35,6 +37,7 @@ const latest = allYears[0];
 
 <Layout title={info.ja} description={info.intro} hideToc>
   <article class="members" data-pagefind-body>
+    <BackLink back={homeBack()} />
     <SectionHeader en={info.en} title={info.ja} lead={info.intro} />
 
     {members.length === 0 && <p class="members-empty">まだメンバーが登録されていません。</p>}
@@ -58,7 +61,15 @@ const latest = allYears[0];
           <a href={path(entry.data.slug)} class="member-card">
             {entry.data.image
               ? <img src={entry.data.image} alt="" loading="lazy" decoding="async" />
-              : <span class="member-initial">{Array.from(entry.data.title.trim())[0] ?? "·"}</span>}
+              : (
+                // 写真が無いときは人型のアイコン
+                <span class="member-initial" aria-hidden="true">
+                  <svg viewBox="0 0 64 64" fill="currentColor">
+                    <circle cx="32" cy="24" r="11" />
+                    <path d="M10 60c0-12.2 9.8-21 22-21s22 8.8 22 21z" />
+                  </svg>
+                </span>
+              )}
             <span class="member-name">{entry.data.title}</span>
             {entry.data.summary && <span class="member-summary">{entry.data.summary}</span>}
           </a>
@@ -147,9 +158,13 @@ const latest = allYears[0];
   }
   .member-initial {
     display: grid;
-    place-items: center;
-    font-size: 2rem;
-    color: var(--color-text-muted);
+    place-items: end center;
+    overflow: hidden;
+    color: var(--color-text-faint);
+  }
+  .member-initial svg {
+    width: 78%;
+    height: 78%;
   }
   .member-name { font-weight: 700; }
   .member-summary { font-size: 0.85rem; color: var(--color-text-muted); }

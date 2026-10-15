@@ -7,14 +7,14 @@
 //     href "/posts"   → blog     （.site posts.tag のタグが付いた記事）
 //     href "/works"   → works    （#works タグが付いたページ）
 //     href "/members" → members  （#member/2026 などのタグが付いたページ）
-//     page で、そのページが #template/contact → contact
+//     href "/contact" → contact  （内容は handa.config.ts の contact）
 //     page で、handa.config.ts の home.about と同じページ → about（トップに全文表示）
 //     それ以外の page → page（トップに概要表示）
 // - 各一覧ページの説明文は handa.config.ts の intros で書く
+import { path as sitePath } from "@cosense-site-kit/theme-utils";
 import { type CollectionEntry, getCollection } from "astro:content";
 import { hasTag, loadTitleToSlug, navHref } from "@cosense-site-kit/theme-utils";
 import { handaConfig, loadStructure } from "./config";
-import { isContactPage } from "./contact";
 
 export type SectionKind = "about" | "blog" | "works" | "members" | "contact" | "page" | "link";
 
@@ -55,14 +55,12 @@ export async function loadSections(): Promise<Section[]> {
     if ("href" in item && item.href) {
       const h = item.href.replace(/\/$/, "");
       const kind: SectionKind =
-        h === "/posts" ? "blog" : h === "/works" ? "works" : h === "/members" ? "members" : "link";
+        h === "/posts" ? "blog" : h === "/works" ? "works" : h === "/members" ? "members" : h === "/contact" ? "contact" : "link";
       return { kind, en, ja, href };
     }
     const entry = "page" in item ? byTitle.get(item.page) : undefined;
     const kind: SectionKind =
-      entry && isContactPage(entry)
-        ? "contact"
-        : entry && entry.data.title === homeTitle
+      entry && entry.data.title === homeTitle
           ? "about"
           : "page";
     return { kind, en, ja, href, entry };
@@ -95,6 +93,11 @@ export const byNewest = (a: CollectionEntry<"pages">, b: CollectionEntry<"pages"
   (b.data.publishedAt ?? "").localeCompare(a.data.publishedAt ?? "");
 
 /** 詳細ページの左上に出す「一覧へ戻る」リンク。該当しなければ undefined。 */
+/** 一覧ページ・概要ページの左上に出す「ホーム」へ戻るリンク */
+export function homeBack() {
+  return { href: sitePath(""), label: "ホーム", en: "Home" };
+}
+
 export async function backLinkFor(tags: string[]) {
   if (tags.some((t) => MEMBER_TAG.test(t))) {
     const s = await sectionInfo("members");
@@ -109,7 +112,8 @@ export async function backLinkFor(tags: string[]) {
     const s = await sectionInfo("works");
     return { href: s.href, label: `${s.ja}一覧`, en: s.en };
   }
-  return undefined;
+  // 一覧に属さないページ（概要など）はホームへ
+  return homeBack();
 }
 
 /** そのページが活動・成果（#works）のページか */

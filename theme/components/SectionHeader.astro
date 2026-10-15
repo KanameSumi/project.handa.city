@@ -8,14 +8,28 @@ interface Props {
   lead?: string;
   /** トップページ内で使うとき（h1 ではなく h2 にする） */
   as?: "h1" | "h2";
+  /** 指定すると、見出し全体がそのページへのリンクになり、右側に矢印が出る */
+  href?: string;
 }
-const { en, title, lead, as = "h1" } = Astro.props;
+const { en, title, lead, as = "h1", href } = Astro.props;
 const Tag = as;
 const showEn = en && en !== title;
 ---
-<header class:list={["section-header", { "is-sub": as === "h2" }]}>
-  {showEn && <p class="section-eyebrow">{en}</p>}
-  <Tag class="section-title">{title}</Tag>
+<header class:list={["section-header", { "is-sub": as === "h2", "is-link": !!href }]}>
+  {href ? (
+    <a class="section-link" href={href}>
+      <span class="section-link-text">
+        {showEn && <span class="section-eyebrow">{en}</span>}
+        <Tag class="section-title">{title}</Tag>
+      </span>
+      <span class="section-arrow" aria-hidden="true">→</span>
+    </a>
+  ) : (
+    <Fragment>
+      {showEn && <p class="section-eyebrow">{en}</p>}
+      <Tag class="section-title">{title}</Tag>
+    </Fragment>
+  )}
   {lead && <p class="section-lead">{lead}</p>}
 </header>
 
@@ -30,6 +44,7 @@ const showEn = en && en !== title;
     padding-bottom: 1rem;
   }
   .section-eyebrow {
+    display: block;
     margin: 0 0 0.35rem;
     font-family: "Oswald", var(--font-display);
     font-size: 0.95rem;
@@ -46,6 +61,30 @@ const showEn = en && en !== title;
   .is-sub .section-title {
     font-size: 1.6rem;
   }
+  /* 見出しがリンクのとき：右側に矢印 */
+  .section-link {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1rem;
+    color: var(--color-text);
+    text-decoration: none;
+  }
+  .section-link:hover { text-decoration: none; }
+  .section-arrow {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 2.4rem;
+    height: 2.4rem;
+    border: 1.5px solid var(--color-accent);
+    border-radius: 50%;
+    color: var(--color-accent);
+    font-size: 1.1rem;
+    transition: background 0.15s var(--ease), color 0.15s var(--ease), transform 0.15s var(--ease);
+  }
+  .section-link:hover .section-arrow { background: var(--color-accent); color: #fff; transform: translateX(3px); }
+  .section-link:hover .section-title { color: var(--color-accent); }
   .section-lead {
     margin: 0.75rem 0 0;
     color: var(--color-text-muted);

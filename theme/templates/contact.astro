@@ -1,32 +1,22 @@
 ---
-// HAnDA: お問い合わせページ用テンプレート（#template/contact）。
-// 本文の最初の code:contact.yaml から、研究室カードと SNS カードを作る。
-// YAML の書き方は lib/contact.ts を参照。YAML の前後の本文はそのまま表示される。
-import type { CollectionEntry } from "astro:content";
-import PageContent from "@cosense-site-kit/theme-utils/components/PageContent.astro";
+// HAnDA: お問い合わせページ（/contact）。
+// 紹介文と SNS アカウントは Cosense の「お問い合わせ」ページ、それ以外は handa.config.ts の contact（lib/contact.ts 参照）。
 import Layout from "../components/Layout.astro";
 import SectionHeader from "../components/SectionHeader.astro";
-import { contactBlockIndex, parseContact } from "../lib/contact";
-import { loadSections } from "../lib/sections";
+import BackLink from "../components/BackLink.astro";
+import { homeBack } from "../lib/sections";
+import { loadContact } from "../lib/contact";
 
-interface Props {
-  entry: CollectionEntry<"pages">;
-}
-const { entry } = Astro.props;
-const page = entry.data;
-const navSection = (await loadSections()).find((s) => s.entry?.data.slug === page.slug);
-const data = parseContact(entry);
-const idx = contactBlockIndex(entry);
-const before = data ? page.blocks.slice(0, idx) : page.blocks;
-const after = data ? page.blocks.slice(idx + 1) : [];
+const data = await loadContact();
 ---
-<Layout title={page.title} description={page.summary} image={page.image}>
+<Layout title={data.title} description={data.intro[0]}>
   <article class="contact" data-pagefind-body>
-    <SectionHeader en={navSection?.en ?? "Contact"} title={page.title} />
+    <BackLink back={homeBack()} />
+    <SectionHeader en={data.en} title={data.title} />
 
-    {before.length > 0 && <PageContent blocks={before} />}
+    {data.intro.map((t) => <p class="contact-intro">{t}</p>)}
 
-    {data && data.accounts.length > 0 && (
+    {data.accounts.length > 0 && (
       <section class="contact-section">
         <ul class="account-grid">
           {data.accounts.map((a) => (
@@ -49,7 +39,7 @@ const after = data ? page.blocks.slice(idx + 1) : [];
       </section>
     )}
 
-    {data?.mail && (
+    {data.mail && (
       <section class="contact-section">
         {data.mail.href ? (
           <a class="mail-btn" href={data.mail.href}>
@@ -66,7 +56,7 @@ const after = data ? page.blocks.slice(idx + 1) : [];
       </section>
     )}
 
-    {data && data.sns.length > 0 && (
+    {data.sns.length > 0 && (
       <section class="contact-section">
         <p class="contact-eyebrow">Pick up</p>
         <ul class="pick-list">
@@ -81,9 +71,8 @@ const after = data ? page.blocks.slice(idx + 1) : [];
       </section>
     )}
 
-    {after.length > 0 && <PageContent blocks={after} />}
 
-    {data?.lab && (
+    {data.lab && (
       <p class="lab-note">
         関連：{data.lab.org && `${data.lab.org} `}
         {data.lab.url
@@ -95,6 +84,7 @@ const after = data ? page.blocks.slice(idx + 1) : [];
 </Layout>
 
 <style>
+  .contact-intro { margin: 0 0 0.5rem; line-height: 1.8; }
   .contact-section { margin: 2.25rem 0; }
   .contact-eyebrow {
     margin: 0 0 0.75rem;

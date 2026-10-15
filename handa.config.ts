@@ -22,14 +22,14 @@ export default {
   // 上部メニュー（この順番でトップページにも各セクションが並ぶ）
   //   label: "英語|日本語" で2段表示
   //   page:  Cosense のページタイトル（そのページへのリンク）
-  //   href:  サイト内のパス（/posts = ブログ, /works = 活動・成果, /members = メンバー）
+  //   href:  サイト内のパス（/posts = ブログ, /works = 活動・成果, /members = メンバー, /contact = お問い合わせ）
   // ---------------------------------------------------------------------------
   nav: [
     { label: "About|概要", page: "HAnDAプロジェクトとは" },
     { label: "Blog|ブログ", href: "/posts" },
     { label: "Works|活動・成果", href: "/works" },
     { label: "Members|メンバー", href: "/members" },
-    { label: "Contact|お問い合わせ", page: "お問い合わせ" },
+    { label: "Contact|お問い合わせ", href: "/contact" },
   ],
 
   // ---------------------------------------------------------------------------
@@ -62,6 +62,41 @@ export default {
   blogPageSize: 10,
 
   // ---------------------------------------------------------------------------
+  // お問い合わせ（/contact のページと、トップのお問い合わせ欄）
+  //   page:     紹介文と SNS アカウントを書く Cosense のページ名。
+  //             Cosense 側には、紹介文の行と「X @handa_project」のようなアカウントの行（1 行 1 つ）を書くだけ。
+  //             （このページ自体は単独では公開されず、内容が /contact に表示される）
+  //   intro / accounts: Cosense のページが無いとき・アカウントが書かれていないときの予備
+  //     accounts は handle（@ の後ろ）だけ書けば URL は自動。url を書けばそちらが優先
+  //   mail:     アドレスは Cosense のお問い合わせページに1行で書く（例「メール: xxx@aitech.ac.jp」）。
+  //             どこにも無いあいだは「準備中」表示。件名・本文のひな形はここで決める
+  //   pickups:  おすすめ投稿へのリンク（任意。小さく表示）
+  //   lab:      関わりのある研究室（ページ下に小さく表示。不要なら消す）
+  // ---------------------------------------------------------------------------
+  contact: {
+    page: "お問い合わせ",
+    title: "お問い合わせ",
+    en: "Contact",
+    intro: "HAnDA Projectの最新情報はSNSで発信しています。お問い合わせもお気軽にDMでどうぞ。",
+    accounts: [
+      { service: "X", handle: "handa_project" },
+      { service: "Instagram", handle: "handa_project" },
+      { service: "TikTok", handle: "handa.project" },
+    ],
+    mail: {
+      address: "", // ふだんは Cosense のお問い合わせページに書く（そちらが優先）。ここは予備
+      subject: "【HAnDA Project】お問い合わせ",
+      body: "お名前：\nご所属：\nお問い合わせ内容：\n",
+    },
+    pickups: [] as { service: string; label?: string; url: string }[],
+    lab: {
+      name: "小栗研究室",
+      org: "愛知工業大学",
+      url: "https://ogurilab.org",
+    },
+  },
+
+  // ---------------------------------------------------------------------------
   // 著作権表示（フッター）
   // ---------------------------------------------------------------------------
   copyright: {
@@ -72,7 +107,7 @@ export default {
   // ---------------------------------------------------------------------------
   // ポリシー（フッターにリンクが並び、/privacy などのページとして公開される）
   //   sections の各項目：heading が見出し、body の1要素が1段落
-  //   ※ 公開前に教授・大学の規程を確認し、enacted（制定日）を入れること
+  //   ※ 公開前に教授・大学の規程も確認しておくこと
   // ---------------------------------------------------------------------------
   policies: [
     {
@@ -116,13 +151,13 @@ export default {
           ],
         },
       ],
-      enacted: "2026年〇月〇日",
+      enacted: "2026年10月15日",
     },
     {
-      slug: "site-policy",
-      title: "サイトポリシー",
-      en: "Site Policy",
-      intro: "HAnDA Project ウェブサイト（以下「本サイト」）をご利用いただく際の方針です。ご利用にあたっては、以下の内容をご確認ください。",
+      slug: "terms",
+      title: "利用規約",
+      en: "Terms of Use",
+      intro: "HAnDA Project ウェブサイト（以下「本サイト」）の利用規約です。本サイトをご利用いただく際は、以下の内容をご確認ください。",
       sections: [
         {
           heading: "著作権",
@@ -151,7 +186,7 @@ export default {
           body: ["最新版の Google Chrome・Safari・Microsoft Edge・Firefox でのご利用を推奨します。"],
         },
       ],
-      enacted: "2026年〇月〇日",
+      enacted: "2026年10月15日",
     },
   ],
 
