@@ -1,0 +1,70 @@
+---
+// HAnDA: ページ本文の表示。テーマ標準の PageContent に、外部 URL のリンクカードを足したもの。
+//   - URL だけの行（YouTube・Vimeo・Spotify・Google マップなど埋め込めるもの以外）
+//   - [https://… 表示名] だけの行
+// をリンクカード（components/LinkCard.astro）にする。区切り線（ーーーーー）の行は出さない。
+// それ以外は PageContent にそのまま任せる。
+import type { ComponentProps } from "astro/types";
+import PageContent from "@cosense-site-kit/theme-utils/components/PageContent.astro";
+import { resolveEmbed } from "@cosense-site-kit/theme-utils";
+import LinkCard from "./LinkCard.astro";
+import { isSeparator } from "../lib/separator";
+
+type Props = ComponentProps<typeof PageContent>;
+const props = Astro.props;
+// 区切り線（ーーーーー など）の行は表示しない
+const blocks = (props.blocks as unknown as Block[]).filter((b) => !isSeparator(b));
+
+type Inline = { type: string; href?: string; value?: string; children?: Inline[] };
+type Block = { type: string; url?: string; src?: string; children?: Inline[] };
+
+const isWeb = (u?: string) => !!u && /^https?:\/\//i.test(u);
+const textOf = (nodes?: Inline[]): string =>
+  (nodes ?? []).map((n) => (n.type === "text" ? n.value ?? "" : textOf(n.children))).join("");
+
+// リンクカードにする行なら { url, label } を返す
+function cardOf(b: Block): { url: string; label?: string } | null {
+  if (b.type === "embed" && isWeb(b.url) && !resolveEmbed(b.url!)) return { url: b.url! };
+  if (b.type === "paragraph") {
+    const kids = (b.children ?? []).filter((n) => !(n.type === "text" && !(n.value ?? "").trim()));
+    if (kids.length === 1 && kids[0].type === "link" && isWeb(kids[0].href)) {
+      const label = textOf(kids[0].children).trim();
+      return { url: kids[0].href!, label: label && label !== kids[0].href ? label : undefined };
+    }
+  }
+  return null;
+}
+
+// 本文をカードの前後で区切る
+type Seg = { kind: "blocks"; blocks: Block[] } | { kind: "card"; url: string; label?: string };
+const segs: Seg[] = [];
+for (const b of blocks) {
+  const card = cardOf(b);
+  if (card) segs.push({ kind: "card", ...card });
+  else {
+    const last = segs[segs.length - 1];
+    if (last?.kind === "blocks") last.blocks.push(b);
+    else segs.push({ kind: "blocks", blocks: [b] });
+  }
+}
+// 一覧カード画像と本文の最初の画像をつなぐ演出（morph）は、その画像を含む区切りにだけ渡す
+const morphSeg =
+  props.morphImageUrl &&
+  segs.findIndex((s) => s.kind === "blocks" && s.blocks.some((b) => b.type === "image" && (b.src ?? b.url) === props.morphImageUrl));
+---
+{segs.every((s) => s.kind === "blocks") ? (
+  <PageContent {...props} blocks={blocks as unknown as Props["blocks"]} />
+) : (
+  segs.map((s, i) =>
+    s.kind === "card" ? (
+      <LinkCard url={s.url} label={s.label} />
+    ) : (
+      <PageContent
+        {...props}
+        blocks={s.blocks as unknown as Props["blocks"]}
+        morphName={i === morphSeg ? props.morphName : undefined}
+        morphImageUrl={i === morphSeg ? props.morphImageUrl : undefined}
+      />
+    ),
+  )
+)}

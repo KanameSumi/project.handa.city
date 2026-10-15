@@ -11,7 +11,8 @@
 import { getCollection } from "astro:content";
 import site from "virtual:cosense-site-kit/site";
 import { hasTag } from "@cosense-site-kit/theme-utils";
-import PageContent from "@cosense-site-kit/theme-utils/components/PageContent.astro";
+import PageContent from "../components/Content.astro"; // HAnDA: 外部 URL をリンクカードにする版
+import { splitAtSeparator } from "../lib/separator";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import Card from "../components/Card.astro";
@@ -76,7 +77,18 @@ const heroLogo = existsSync(join(process.cwd(), "public", "logo-full.png")) ? `$
       {s.kind === "about" && s.entry && (
         <Fragment>
           <SectionHeader as="h2" en={s.en} title={s.entry.data.title} />
-          <div class="about-body"><PageContent blocks={s.entry.data.blocks} /></div>
+          {/* 概要：Cosense の区切り線（ーーーーー）より上だけをトップに出し、続きは概要ページで読む */}
+          {(() => {
+            const { before, after } = splitAtSeparator(s.entry.data.blocks);
+            return (
+              <Fragment>
+                <div class="about-body"><PageContent blocks={before} /></div>
+                {after && after.length > 0 && (
+                  <a class="more-link" href={s.href}>詳しく見る <span aria-hidden="true">→</span></a>
+                )}
+              </Fragment>
+            );
+          })()}
         </Fragment>
       )}
 

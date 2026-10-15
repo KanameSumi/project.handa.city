@@ -1,0 +1,119 @@
+---
+// HAnDA: 外部ページへのリンクカード（タイトル・説明・サイト名）。
+// Cosense で URL だけを 1 行に書いたとき（または [https://… 表示名] だけの行）に使われる。画像は出さない。
+// 中身はビルド時に相手ページの OGP を読んで作る（lib/ogp.ts）。読めなかったときはドメイン名で表示。
+import { getOgp } from "../lib/ogp";
+
+interface Props {
+  url: string;
+  /** Cosense で [https://… 表示名] と書いたときの表示名 */
+  label?: string;
+}
+const { url, label } = Astro.props;
+
+let host = url;
+let shortPath = "";
+try {
+  const u = new URL(url);
+  host = u.hostname.replace(/^www\./, "");
+  shortPath = decodeURIComponent(u.pathname + u.search).replace(/\/$/, "");
+} catch {
+  /* そのまま */
+}
+// OGP が読めないことが多いサービスは、名前だけでもわかるように
+const SERVICES: [RegExp, string][] = [
+  [/(^|\.)(x|twitter)\.com$/, "X"],
+  [/(^|\.)instagram\.com$/, "Instagram"],
+  [/(^|\.)tiktok\.com$/, "TikTok"],
+  [/(^|\.)youtube\.com$|^youtu\.be$/, "YouTube"],
+  [/(^|\.)facebook\.com$/, "Facebook"],
+  [/(^|\.)scrapbox\.io$|(^|\.)cosen\.se$/, "Cosense"],
+];
+const service = SERVICES.find(([re]) => re.test(host))?.[1];
+
+// SNS は「@アカウント名」や「〇〇 の投稿」と出す（OGP が読めないことが多いので）
+function snsTitle(): string | undefined {
+  if (!service || !["X", "Instagram", "TikTok"].includes(service)) return undefined;
+  const parts = shortPath.split("/").filter(Boolean);
+  const handle = parts[0]?.replace(/^@/, "");
+  if (parts.length === 1 && handle && /^[A-Za-z0-9._]+$/.test(handle)) return `@${handle}`;
+  return `${service} の投稿`;
+}
+
+const ogp = await getOgp(url);
+const title =
+  label || ogp?.title || snsTitle() || (service ? `${service} のページ` : host + (shortPath.length > 1 ? shortPath : ""));
+const description = ogp?.description && ogp.description !== title ? ogp.description : undefined;
+const site = ogp?.siteName || service || host;
+// サイト名がタイトルと同じなら、下の行は出さない
+const showSite = site !== title;
+---
+<a class="link-card" href={url} target="_blank" rel="noopener noreferrer">
+  <span class="link-card-body">
+    <span class="link-card-title">{title}</span>
+    {description && <span class="link-card-desc">{description}</span>}
+    <span class="link-card-site">
+      <span class="link-card-sitename">{showSite ? site : host}</span>
+      {showSite && site !== host && <span class="link-card-host">· {host}</span>}
+    </span>
+  </span>
+  <span class="link-card-ext" aria-hidden="true">↗</span>
+</a>
+
+<style>
+  /* コンパクトなリンクカード：タイトル・説明・サイト名を 1 行ずつ */
+  .link-card {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    margin: 0.75rem 0;
+    padding: 0.65rem 1rem;
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    background: var(--color-bg);
+    color: var(--color-text);
+    text-decoration: none;
+    transition: border-color 0.15s var(--ease), background 0.15s var(--ease);
+  }
+  .link-card:hover {
+    text-decoration: none;
+    border-color: var(--color-accent);
+    background: var(--color-bg-hover);
+  }
+  .link-card-body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+  }
+  .link-card-title,
+  .link-card-desc,
+  .link-card-sitename,
+  .link-card-host {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .link-card-title { font-weight: 700; font-size: 0.95rem; line-height: 1.45; }
+  .link-card-desc { font-size: 0.8rem; line-height: 1.5; color: var(--color-text-muted); }
+  /* サイト名の行 */
+  .link-card-site {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    min-width: 0;
+    font-size: 0.74rem;
+    color: var(--color-text-muted);
+  }
+  .link-card-host { color: var(--color-text-faint); flex: 0 1 auto; }
+  .link-card-ext {
+    flex: none;
+    font-size: 0.85rem;
+    color: var(--color-text-faint);
+    transition: color 0.15s var(--ease);
+  }
+  .link-card:hover .link-card-ext { color: var(--color-accent); }
+  @media (max-width: 540px) {
+    .link-card { gap: 0.7rem; padding-right: 0.75rem; }
+  </style>
