@@ -265,6 +265,25 @@ cosense-site-kit（テーマ・CLI）や Astro の新しいバージョンは、
 
 自動マージを止めたい場合は `.github/workflows/ci.yml` の `automerge` job を削除してください（PR は引き続き立ちます）。
 
+### PR プレビュー（任意）
+
+PR ごとにサイトをビルドして [Cloudflare Pages](https://pages.cloudflare.com/) へ上げ、`https://pr-<PR番号>.<プロジェクト名>.pages.dev/` の URL を PR にコメントします。push するたびに同じ URL が更新されます。本番の GitHub Pages には影響しません（プレビューには Cloudflare が `noindex` を付けるので検索にも載りません）。
+
+初回だけ次を設定します。未設定のあいだは何もしません（CI のビルドだけが走ります）。
+
+1. [Cloudflare](https://dash.cloudflare.com/sign-up) のアカウントを作る（無料プランで足ります）
+2. 右上の人型アイコン → **Profile → API Tokens → Create Token → Custom token** で、次の内容のトークンを発行する
+   - Permissions: `Account` / `Cloudflare Pages` / `Edit`
+   - Account Resources: `Include` / 自分のアカウント
+3. **Workers & Pages** を開き、**Account Details** の **Account ID** をコピーする（どの画面でも Cmd/Ctrl + K →「Copy account ID」で取れます）
+4. GitHub の **Settings → Secrets and variables → Actions** に登録する
+   - Secrets: `CLOUDFLARE_API_TOKEN`（2 のトークン）、`CLOUDFLARE_ACCOUNT_ID`（3 の ID）
+   - Variables: `CLOUDFLARE_PAGES_PROJECT`（Pages のプロジェクト名。英小文字・数字・ハイフンで、URL の一部になります。例: `handa-project-preview`）
+
+Pages のプロジェクトは、最初のプレビューのときにワークフローが自動で作ります。プロジェクト名が Cloudflare 全体で既に使われていると、ワークフローがエラーで止まります。その場合は Cloudflare 側にできたプロジェクトを削除し、`CLOUDFLARE_PAGES_PROJECT` を別の名前にしてください。
+
+仕組み: `ci.yml`（PR のコードを権限なしで実行）がビルドして成果物を置き、`preview.yml`（main 側の定義で実行。PR のコードは実行しない）がその静的ファイルだけを Cloudflare に上げます。fork からの PR は、メンテナが Actions の実行を承認してからプレビューされます。
+
 ---
 
 ## 設定ファイル早見表
