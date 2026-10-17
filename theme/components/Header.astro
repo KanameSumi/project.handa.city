@@ -1,0 +1,205 @@
+---
+import site from "virtual:cosense-site-kit/site";
+import options from "virtual:cosense-theme-default/options";
+import { loadTitleToSlug, navHref } from "@cosense-site-kit/theme-utils";
+import { loadStructure } from "../lib/config";
+import Search from "./Search.astro";
+import { splitLabel } from "../lib/sections";
+
+// HAnDA: public/logo.png があればサイト名の代わりにロゴ画像を出す
+import { existsSync } from "node:fs";
+import { join } from "node:path";
+const hasLogo = existsSync(join(process.cwd(), "public", "logo.png"));
+const logoSrc = `${import.meta.env.BASE_URL.replace(/\/$/, "")}/logo.png`;
+
+interface Props {
+  currentPath?: string;
+}
+const { currentPath = "/" } = Astro.props;
+
+const siteTitle =
+  options.siteTitle ?? site?.title ?? (Astro.site ? new URL("/", Astro.site).hostname : "Site");
+
+const structure = await loadStructure();
+const navItems = structure.nav.length > 0 ? structure.nav : options.nav;
+const titleToSlug = await loadTitleToSlug();
+
+const isActive = (href: string): boolean => {
+  if (href === "/") return currentPath === "/";
+  return currentPath === href || currentPath.startsWith(`${href}/`);
+};
+---
+<header class="site-header">
+  <div class="site-header-inner">
+    <a class="site-brand" href={import.meta.env.BASE_URL}>
+      {hasLogo ? <img class="site-logo" src={logoSrc} alt={siteTitle} /> : siteTitle}
+    </a>
+
+    {navItems.length > 0 && (
+      <Fragment>
+        <button
+          type="button"
+          class="site-nav-toggle"
+          aria-label="Toggle navigation"
+          aria-controls="site-nav-wrap"
+          aria-expanded="false"
+        >
+          <svg
+            width="22"
+            height="22"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            aria-hidden="true"
+          >
+            <line class="bar bar-1" x1="3" y1="6" x2="21" y2="6" />
+            <line class="bar bar-2" x1="3" y1="12" x2="21" y2="12" />
+            <line class="bar bar-3" x1="3" y1="18" x2="21" y2="18" />
+          </svg>
+        </button>
+        <nav class="site-nav-wrap" id="site-nav-wrap" aria-label="Primary">
+          <ul class="site-nav">
+            {navItems.map((item) => {
+              const href = navHref(item, titleToSlug);
+              // HAnDA: 「英語|日本語」なら2段表示
+              const { en, ja } = splitLabel(item.label);
+              return (
+                <li>
+                  <a href={href} class:list={[{ "is-active": isActive(href) }]}>
+                    {en === ja ? item.label : (
+                      <Fragment><span class="nav-en">{en}</span><span class="nav-ja">{ja}</span></Fragment>
+                    )}
+                  </a>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+      </Fragment>
+    )}
+
+    {/* Search icon sits at the far right of the bar. */}
+    {options.search && <Search />}
+  </div>
+</header>
+
+<script>
+  import { trapFocus } from "../scripts/focus-trap";
+
+  // Header behaviour, progressively enhanced. `has-js` gates the collapsed
+  // layouts so without JS the nav stays visible (wrapped) and the search icon
+  // is hidden (search needs JS + a built index anyway). The search UI itself is
+  // the body-level #site-search-overlay (rendered by Layout); the header icon
+  // just opens it.
+  const header = document.querySelector<HTMLElement>(".site-header");
+  if (header) {
+    header.classList.add("has-js");
+
+    const navToggle = header.querySelector<HTMLButtonElement>(".site-nav-toggle");
+    const navWrap = header.querySelector<HTMLElement>(".site-nav-wrap");
+    const searchTrigger = header.querySelector<HTMLButtonElement>("#site-search-trigger");
+    const overlay = document.getElementById("site-search-overlay");
+    const backdrop = overlay?.querySelector<HTMLElement>(".search-overlay-backdrop") ?? null;
+    const box = overlay?.querySelector<HTMLElement>(".search-box") ?? null;
+    const note = overlay?.querySelector<HTMLElement>(".search-box-note") ?? null;
+    const bundlePath = overlay?.dataset.bundlePath ?? "/pagefind/";
+
+    const setNav = (open: boolean) => {
+      navWrap?.classList.toggle("is-open", open);
+      navToggle?.setAttribute("aria-expanded", String(open));
+    };
+    const focusInput = () =>
+      requestAnimationFrame(() => overlay?.querySelector("input")?.focus());
+    // Focus trap so Tab stays inside the open dialog; released on close.
+    let releaseTrap: (() => void) | null = null;
+    const setSearch = (open: boolean) => {
+      if (!overlay) return;
+      const wasOpen = overlay.classList.contains("is-open");
+      if (open && box && searchTrigger) {
+        // Pin the box over the icon so it grows out of the button.
+        const r = searchTrigger.getBoundingClientRect();
+        box.style.top = `${r.top}px`;
+        box.style.right = `${window.innerWidth - r.right}px`;
+      }
+      overlay.classList.toggle("is-open", open);
+      searchTrigger?.setAttribute("aria-expanded", String(open));
+      if (open) {
+        loadSearch();
+        focusInput();
+        if (box) releaseTrap = trapFocus(box);
+      } else {
+        releaseTrap?.();
+        releaseTrap = null;
+        // Return focus to the trigger only if we actually closed an open
+        // overlay; otherwise a stray Escape (e.g. closing the nav) would yank
+        // focus to the search icon. Without this, focus falls to <body> because
+        // the overlay becomes visibility:hidden.
+        if (wasOpen) searchTrigger?.focus();
+      }
+    };
+
+    // Lazy-load the Pagefind UI the first time search is opened. If the bundle
+    // isn't there (e.g. `astro dev` before a build), show the note instead.
+    let searchRequested = false;
+    const loadSearch = () => {
+      if (searchRequested) return;
+      searchRequested = true;
+      const link = document.createElement("link");
+      link.rel = "stylesheet";
+      link.href = `${bundlePath}pagefind-ui.css`;
+      document.head.appendChild(link);
+      const script = document.createElement("script");
+      script.src = `${bundlePath}pagefind-ui.js`;
+      script.addEventListener("load", () => {
+        const Ctor = (window as unknown as { PagefindUI?: new (o: unknown) => unknown }).PagefindUI;
+        if (typeof Ctor === "function") {
+          new Ctor({
+            element: "#cosense-search",
+            bundlePath,
+            showImages: false,
+            showSubResults: true,
+            translations: { placeholder: "Search" },
+          });
+          focusInput();
+        } else if (note) {
+          note.hidden = false;
+        }
+      });
+      script.addEventListener("error", () => {
+        if (note) note.hidden = false;
+      });
+      document.head.appendChild(script);
+    };
+
+    navToggle?.addEventListener("click", () => {
+      setNav(!navWrap?.classList.contains("is-open"));
+    });
+    searchTrigger?.addEventListener("click", () => {
+      const open = !overlay?.classList.contains("is-open");
+      setNav(false);
+      setSearch(open);
+    });
+    backdrop?.addEventListener("click", () => setSearch(false));
+    navWrap?.addEventListener("click", (e) => {
+      if ((e.target as HTMLElement).closest("a")) setNav(false);
+    });
+    document.addEventListener("keydown", (e) => {
+      // Ignore Escape fired to cancel an IME conversion — otherwise typing
+      // Japanese in the search box and pressing Esc to undo a conversion would
+      // close the whole overlay and discard the query.
+      if (e.isComposing || e.keyCode === 229) return;
+      if (e.key === "Escape") {
+        setNav(false);
+        setSearch(false);
+      }
+    });
+    document.addEventListener("click", (e) => {
+      // Close the nav menu on an outside click. The search overlay closes via
+      // its own backdrop, so leave it alone here.
+      const target = e.target as Node;
+      if (!header.contains(target) && !overlay?.contains(target)) setNav(false);
+    });
+  }
+</script>

@@ -1,0 +1,77 @@
+---
+import { getCollection } from "astro:content";
+import { hasTag } from "@cosense-site-kit/theme-utils";
+import { loadStructure } from "../lib/config";
+import type { GetStaticPaths, PaginateFunction } from "astro";
+import Card from "../components/Card.astro";
+import Layout from "../components/Layout.astro";
+import Pagination from "../components/Pagination.astro";
+import SectionHeader from "../components/SectionHeader.astro";
+import BackLink from "../components/BackLink.astro";
+import { homeBack } from "../lib/sections";
+import { sectionInfo } from "../lib/sections";
+import { POSTS_PER_PAGE } from "../constants";
+
+// /posts/[...page] — paginated list of pages tagged with the .site posts tag.
+// Page 1 is /posts; later pages are /posts/2, /posts/3, … The route always
+// emits at least page 1 (a stub when posts aren't configured) so /posts never
+// 404s.
+export const getStaticPaths: GetStaticPaths = async ({ paginate }) => {
+  const structure = await loadStructure();
+  const postTag = structure.posts?.tag;
+  const all = await getCollection("pages");
+  const posts = postTag
+    ? all
+        .filter((e) => hasTag(e.data.tags, postTag))
+        .sort((a, b) => (b.data.publishedAt ?? "").localeCompare(a.data.publishedAt ?? ""))
+    : [];
+
+  if (posts.length === 0) {
+    return [
+      {
+        params: { page: undefined },
+        props: { entries: [], pageInfo: null, configured: Boolean(postTag) },
+      },
+    ];
+  }
+
+  return (paginate as PaginateFunction)(posts, { pageSize: POSTS_PER_PAGE }).map((route) => ({
+    params: route.params,
+    props: {
+      entries: route.props.page.data,
+      pageInfo: {
+        current: route.props.page.currentPage,
+        last: route.props.page.lastPage,
+        prevUrl: route.props.page.url.prev,
+        nextUrl: route.props.page.url.next,
+      },
+      configured: true,
+    },
+  }));
+};
+
+type Entry = Awaited<ReturnType<typeof getCollection<"pages">>>[number];
+const { entries, pageInfo, configured } = Astro.props as {
+  entries: Entry[];
+  pageInfo: { current: number; last: number; prevUrl?: string; nextUrl?: string } | null;
+  configured: boolean;
+};
+const info = await sectionInfo("blog");
+---
+<Layout title={info.ja} description={info.intro} hideToc>
+  <BackLink back={homeBack()} />
+  <SectionHeader en={info.en} title={info.ja} lead={info.intro} />
+  {configured ? (
+    <section>
+      {entries.length === 0 && <p class="summary">まだ記事がありません。</p>}
+      <ul class="card-grid">
+        {entries.map((entry) => (
+          <Card entry={entry} />
+        ))}
+      </ul>
+      {pageInfo && <Pagination {...pageInfo} />}
+    </section>
+  ) : (
+    <p class="summary">ブログが設定されていません（.site の posts.tag を設定してください）。</p>
+  )}
+</Layout>

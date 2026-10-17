@@ -1,0 +1,206 @@
+---
+// HAnDA: トップページのスライドショー（写真がゆっくりズームしながら、フェードで切り替わる）。
+// 写真は Cosense の「トップ写真」ページから読む（lib/slides.ts）。
+// 左右の端をクリック、または左右にスワイプすると前後の写真に切り替わる。
+interface Props {
+  slides: string[];
+  caption?: string;
+  /** 1 枚あたりの表示時間（ミリ秒） */
+  interval?: number;
+}
+const { slides, caption, interval = 5500 } = Astro.props;
+
+// Gyazo の写真は画面の大きさに合ったサイズを読ませる（スマホで 2400px を読まないように）
+const srcsetOf = (src: string) => {
+  const m = src.match(/^(.*\/max_size\/)\d+$/);
+  return m ? [800, 1200, 1600, 2400].map((w) => `${m[1]}${w} ${w}w`).join(", ") : undefined;
+};
+---
+<section class="hero-slides" data-interval={interval} aria-label="プロジェクトの写真">
+  {slides.map((src, i) => (
+    <img
+      class:list={["hero-slide", { "is-active": i === 0 }]}
+      src={src}
+      srcset={srcsetOf(src)}
+      sizes="(max-width: 720px) 100vw, 68rem"
+      alt=""
+      loading={i === 0 ? "eager" : "lazy"}
+      decoding="async"
+      fetchpriority={i === 0 ? "high" : "auto"}
+    />
+  ))}
+  <div class="hero-shade" aria-hidden="true"></div>
+  {caption && <p class="hero-caption">{caption}</p>}
+  {slides.length > 1 && (
+    <>
+      <button type="button" class="hero-nav hero-prev" aria-label="前の写真"><span aria-hidden="true"></span></button>
+      <button type="button" class="hero-nav hero-next" aria-label="次の写真"><span aria-hidden="true"></span></button>
+    </>
+  )}
+  {slides.length > 1 && (
+    <div class="hero-dots" role="tablist" aria-label="写真の切り替え">
+      {slides.map((_, i) => (
+        <button type="button" class:list={["hero-dot", { "is-active": i === 0 }]} aria-label={`${i + 1}枚目`} data-index={i}></button>
+      ))}
+    </div>
+  )}
+</section>
+
+<script>
+  document.querySelectorAll<HTMLElement>(".hero-slides").forEach((root) => {
+    const slides = [...root.querySelectorAll<HTMLImageElement>(".hero-slide")];
+    const dots = [...root.querySelectorAll<HTMLButtonElement>(".hero-dot")];
+    if (slides.length < 2) return;
+    const interval = Number(root.dataset.interval) || 5500;
+    let current = 0;
+    let timer: number | undefined;
+    const show = (i: number) => {
+      current = (i + slides.length) % slides.length;
+      slides.forEach((s, k) => s.classList.toggle("is-active", k === current));
+      dots.forEach((d, k) => d.classList.toggle("is-active", k === current));
+    };
+    const start = () => {
+      stop();
+      timer = window.setInterval(() => show(current + 1), interval);
+    };
+    const stop = () => window.clearInterval(timer);
+    const go = (i: number) => { show(i); start(); };
+    dots.forEach((d) => d.addEventListener("click", () => go(Number(d.dataset.index))));
+    root.querySelector(".hero-prev")?.addEventListener("click", () => go(current - 1));
+    root.querySelector(".hero-next")?.addEventListener("click", () => go(current + 1));
+
+    // スワイプ（横に 40px 以上動かしたら切り替え。縦スクロールは邪魔しない）
+    let sx = 0, sy = 0, tracking = false;
+    root.addEventListener("touchstart", (e) => {
+      const t = e.touches[0];
+      sx = t.clientX; sy = t.clientY; tracking = true;
+    }, { passive: true });
+    root.addEventListener("touchend", (e) => {
+      if (!tracking) return;
+      tracking = false;
+      const t = e.changedTouches[0];
+      const dx = t.clientX - sx, dy = t.clientY - sy;
+      if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.2) go(current + (dx < 0 ? 1 : -1));
+    }, { passive: true });
+    root.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowLeft") go(current - 1);
+      if (e.key === "ArrowRight") go(current + 1);
+    });
+    document.addEventListener("visibilitychange", () => (document.hidden ? stop() : start()));
+    start();
+  });
+</script>
+
+<style>
+  .hero-slides {
+    position: relative;
+    overflow: hidden;
+    aspect-ratio: 16 / 8;
+    max-height: 72vh;
+    width: 100%;
+    background: #1d1d22;
+  }
+  .hero-slide {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0;
+    transform: scale(1.0);
+    transition: opacity 1.4s ease, transform 7s linear;
+  }
+  .hero-slide.is-active {
+    opacity: 1;
+    transform: scale(1.07);
+  }
+  .hero-shade {
+    position: absolute;
+    inset: auto 0 0 0;
+    height: 45%;
+    background: linear-gradient(to top, rgb(0 0 0 / 0.55), transparent);
+    pointer-events: none;
+  }
+  .hero-caption {
+    position: absolute;
+    left: 2.5rem;
+    right: 8rem;
+    bottom: 1.75rem;
+    margin: 0;
+    color: #fff;
+    font-size: 1.05rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    line-height: 1.6;
+    text-shadow: 0 1px 8px rgb(0 0 0 / 0.4);
+  }
+  .hero-nav {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    z-index: 2;
+    width: 14%;
+    min-width: 3rem;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .hero-prev { left: 0; justify-content: flex-start; padding-left: 1.25rem; }
+  .hero-next { right: 0; justify-content: flex-end; padding-right: 1.25rem; }
+  .hero-nav span {
+    width: 2.6rem;
+    height: 2.6rem;
+    border-radius: 50%;
+    background: rgb(0 0 0 / 0.32);
+    opacity: 0;
+    transition: opacity 0.25s ease, background 0.25s ease;
+    position: relative;
+  }
+  .hero-nav span::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0.65rem;
+    height: 0.65rem;
+    border-top: 2px solid #fff;
+    border-right: 2px solid #fff;
+  }
+  .hero-prev span::before { transform: translate(-30%, -50%) rotate(-135deg); }
+  .hero-next span::before { transform: translate(-70%, -50%) rotate(45deg); }
+  .hero-slides:hover .hero-nav span,
+  .hero-nav:focus-visible span { opacity: 1; }
+  .hero-nav:hover span { background: rgb(0 0 0 / 0.5); }
+  .hero-dots {
+    z-index: 3;
+    position: absolute;
+    right: 2rem;
+    bottom: 1.9rem;
+    display: flex;
+    gap: 0.5rem;
+  }
+  .hero-dot {
+    width: 9px;
+    height: 9px;
+    padding: 0;
+    border: 1.5px solid #fff;
+    border-radius: 50%;
+    background: transparent;
+    cursor: pointer;
+    opacity: 0.85;
+  }
+  .hero-dot.is-active { background: #fff; }
+  @media (max-width: 720px) {
+    .hero-slides { aspect-ratio: 4 / 3; }
+    .hero-caption { left: 1.25rem; right: 1.25rem; bottom: 2.6rem; font-size: 0.9rem; }
+    .hero-dots { left: 1.25rem; right: auto; bottom: 1.1rem; }
+    .hero-nav span { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .hero-slide, .hero-slide.is-active { transform: none; transition: opacity 0.8s ease; }
+  }
+</style>

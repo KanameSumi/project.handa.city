@@ -1,0 +1,44 @@
+---
+import type { CollectionEntry } from "astro:content";
+import { pagePaths } from "@cosense-site-kit/theme-utils";
+import Collection from "./collection.astro";
+import Page from "./page.astro";
+import Profile from "./profile.astro";
+import { MEMBER_TAG } from "../lib/sections";
+import { slidesPageTitle } from "../lib/slides";
+import { handaConfig } from "../lib/config";
+
+// Theme's per-page template registry. Add a new template by importing the
+// .astro file at the top and adding an entry below — the page-level
+// `#template/<name>` tag and `.site` YAML `templates:` mapping look these up.
+// Unknown names fall back to Page so a bad tag never 500s.
+const TEMPLATES: Record<string, typeof Page> = {
+  page: Page,
+  profile: Profile,
+  collection: Collection,
+};
+
+export async function getStaticPaths() {
+  // HAnDA: スライド写真用のページ（トップ写真）は、単独のページとしては出さない
+  // お問い合わせ用のページも同様（内容は /contact に表示される）
+  const hidden = new Set([await slidesPageTitle(), handaConfig.contact.page].filter(Boolean));
+  return (await pagePaths()).filter((p) => !hidden.has(p.props.entry.data.title));
+}
+
+const { entry } = Astro.props as { entry: CollectionEntry<"pages"> };
+// Object.hasOwn (not `?? Page`): `??` only catches undefined/null, so an
+// inherited key like `#template/constructor` would resolve to Object.prototype's
+// property instead of falling back — rendering a non-component and crashing the
+// whole `astro build`. Guarding on own keys keeps the "bad tag never 500s"
+// contract that the registry comment above promises.
+// The inner `?? Page` never fires at runtime (hasOwn guarantees the key);
+// it only narrows away the `undefined` that noUncheckedIndexedAccess adds.
+// HAnDA: #member/2026 などが付いたページは、#template/profile が無くてもプロフィール表示（日付なし）
+const isMember = entry.data.tags.some((t) => MEMBER_TAG.test(t));
+const Template = isMember && entry.data.template === "page"
+  ? Profile
+  : Object.hasOwn(TEMPLATES, entry.data.template)
+  ? (TEMPLATES[entry.data.template] ?? Page)
+  : Page;
+---
+<Template entry={entry} />

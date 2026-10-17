@@ -1,4 +1,6 @@
 import { defineCosenseSite } from "@cosense-site-kit/core";
+// サイト名・説明文は handa.config.ts で管理（Cosense の .site は使わない）
+import handa from "./handa.config";
 
 // Per-site values are NOT hard-coded here, so a copy of this template needs
 // no code edits to be pointed at your own site:
@@ -26,13 +28,10 @@ if (!project) {
   );
 }
 
-// "owner/repo" is provided by GitHub Actions; local builds fall back to a generic name.
-const repoName = process.env.GITHUB_REPOSITORY?.split("/")[1];
-
 export default defineCosenseSite({
   site: {
-    title: repoName || "My Cosense Site",
-    description: "A site published from Cosense",
+    title: handa.site.title,
+    description: handa.site.description,
     baseUrl: process.env.PAGES_ORIGIN || "http://localhost:4321",
     base: process.env.PAGES_BASE_PATH || "/",
     lang: "ja",

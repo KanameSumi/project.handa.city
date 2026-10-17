@@ -1,0 +1,78 @@
+---
+// HAnDA: プライバシーポリシー・サイトポリシーなどのページ。
+// 内容は Cosense ではなく handa.config.ts の policies に書く（勝手に書き換えられないように）。
+// URL は /<slug>（例：/privacy, /site-policy）。
+import { handaConfig } from "../lib/config";
+import Layout from "../components/Layout.astro";
+import SectionHeader from "../components/SectionHeader.astro";
+import BackLink from "../components/BackLink.astro";
+import { homeBack } from "../lib/sections";
+
+export function getStaticPaths() {
+  return handaConfig.policies.map((p) => ({ params: { policy: p.slug }, props: { policy: p } }));
+}
+const { policy } = Astro.props as { policy: (typeof handaConfig.policies)[number] };
+---
+<Layout title={policy.title} description={policy.intro}>
+  <article class="policy">
+    <BackLink back={homeBack()} />
+    <SectionHeader en={policy.en} title={policy.title} lead={policy.intro} />
+    {policy.sections.map((s, i) => (
+      <section class="policy-section">
+        <h2>{i + 1}. {s.heading}</h2>
+        {s.body.map((p) => <p>{p}</p>)}
+      </section>
+    ))}
+    <footer class="policy-footer">
+      {policy.enacted && <p>制定日：{policy.enacted}</p>}
+      {handaConfig.policyOwner && <p>{handaConfig.policyOwner}</p>}
+    </footer>
+    <div class="policy-top">
+      <a href="#top"><span aria-hidden="true">↑</span> ページの先頭へ</a>
+    </div>
+  </article>
+</Layout>
+
+<script>
+  document.querySelectorAll<HTMLAnchorElement>('.policy-top a').forEach((a) =>
+    a.addEventListener("click", (e) => {
+      e.preventDefault();
+      const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      window.scrollTo({ top: 0, behavior: reduce ? "auto" : "smooth" });
+    }),
+  );
+</script>
+
+<style>
+  .policy-section { margin: 0 0 2rem; }
+  .policy-section h2 { font-size: 1.15rem; margin: 0 0 0.6rem; }
+  .policy-section p { margin: 0 0 0.6rem; line-height: 1.9; }
+  .policy-footer {
+    margin-top: 3rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--color-divider);
+    color: var(--color-text-muted);
+    font-size: 0.9rem;
+    text-align: right;
+  }
+  .policy-footer p { margin: 0.2rem 0; }
+  .policy-top { margin-top: 2.5rem; text-align: center; }
+  .policy-top a {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.3rem 0.8rem;
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    font-size: 0.85rem;
+    color: var(--color-text-soft);
+    text-decoration: none;
+    transition: background 0.15s var(--ease), color 0.15s var(--ease), border-color 0.15s var(--ease);
+  }
+  .policy-top a:hover {
+    background: var(--color-accent-soft);
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+    text-decoration: none;
+  }
+</style>

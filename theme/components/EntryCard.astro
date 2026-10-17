@@ -1,0 +1,39 @@
+---
+import type { CollectionEntry } from "astro:content";
+import { path, vtName } from "@cosense-site-kit/theme-utils";
+import PageMeta from "@cosense-site-kit/theme-utils/components/PageMeta.astro";
+import EntryTags from "./EntryTags.astro";
+
+// A single page-list card (thumbnail + title + summary + date/tags). Shared by
+// the home, /posts and /tags/<tag> lists so the three can't drift — they used to
+// be copy-pasted, and the tag list had silently lost its date row. `showDate`
+// lets a caller opt out explicitly rather than by omission.
+interface Props {
+  entry: CollectionEntry<"pages">;
+  showDate?: boolean;
+}
+const { entry, showDate = true } = Astro.props;
+const { slug, image, title, summary, publishedAt, tags } = entry.data;
+---
+<li>
+  <a
+    class="thumb"
+    href={path(slug)}
+    aria-hidden="true"
+    tabindex="-1"
+    style={image ? `view-transition-name:${vtName(slug)}` : undefined}
+  >
+    {image
+      ? <img src={image} alt="" loading="lazy" decoding="async" />
+      : <span class="thumb-placeholder">{Array.from(title.trim())[0] ?? "·"}</span>}
+  </a>
+  <div class="entry-body">
+    <a href={path(slug)}>{title}</a>
+    {summary && <p class="summary">{summary}</p>}
+    {/* Cards show the publish date only; the update date belongs on the page
+        itself, so modifiedAt is deliberately not passed. */}
+    <PageMeta tags={tags} publishedAt={publishedAt} show={showDate} class="entry-meta">
+      <EntryTags tags={tags} />
+    </PageMeta>
+  </div>
+</li>

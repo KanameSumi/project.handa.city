@@ -1,0 +1,49 @@
+---
+// HAnDA: フッター。
+//   - ポリシーへのリンク（handa.config.ts の policies）
+//   - 著作権表示：© 年 名義. All Rights Reserved.（名義は handa.config.ts の copyright.holder）
+import { path } from "@cosense-site-kit/theme-utils";
+import { handaConfig } from "../lib/config";
+
+const year = new Date().getFullYear();
+const holder = handaConfig.copyright.holder;
+const links = handaConfig.policies.map((p) => ({ label: p.title, href: path(p.slug) }));
+---
+<footer class="site-footer">
+  <div class="site-footer-inner">
+    {links.length > 0 && (
+      <nav class="footer-links" aria-label="サイト情報">
+        {links.map((l) => <a href={l.href}>{l.label}</a>)}
+      </nav>
+    )}
+    <p class="footer-copy">
+      &copy; {year} {holder}. All Rights Reserved.
+    </p>
+    <p class="footer-built">
+      Built with <a href="https://github.com/shinyaoguri/cosense-site-kit" target="_blank" rel="noopener noreferrer">cosense-site-kit</a>
+    </p>
+  </div>
+</footer>
+
+<style>
+  .site-footer-inner {
+    flex-direction: column;
+    align-items: center;
+    gap: 0.4rem;
+    padding-top: 1.75rem;
+    padding-bottom: 1.75rem;
+    text-align: center;
+  }
+  .footer-links { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.25rem 1.25rem; }
+  .footer-links a { color: var(--color-text-soft); text-decoration: none; font-size: 0.8rem; }
+  .footer-links a:hover { color: var(--color-accent); text-decoration: underline; }
+  .footer-copy {
+    margin: 0;
+    font-family: "Oswald", var(--font-sans);
+    font-size: 0.8rem;
+    letter-spacing: 0.06em;
+    color: var(--color-text-muted);
+  }
+  .footer-built { margin: 0; font-size: 0.7rem; color: var(--color-text-muted); }
+  .footer-built a { color: inherit; }
+</style>

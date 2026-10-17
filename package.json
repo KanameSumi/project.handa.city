@@ -15,8 +15,10 @@
     "@cosense-site-kit/astro": "^0.2.1",
     "@cosense-site-kit/cli": "^0.1.13",
     "@cosense-site-kit/core": "^0.4.3",
-    "@cosense-site-kit/theme-default": "^0.8.1",
-    "astro": "^7.3.5"
+    "@cosense-site-kit/theme-utils": "^0.5.1",
+    "astro": "^7.3.5",
+    "pagefind": "^1.5.2",
+    "yaml": "^2.9.1"
   },
   "overrides": {
     "esbuild": ">=0.28.1"

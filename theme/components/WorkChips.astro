@@ -1,0 +1,49 @@
+---
+// HAnDA: メンバーが関わった活動・成果をタグ（チップ）で並べる。押すとその活動のページへ。
+import type { CollectionEntry } from "astro:content";
+import { path } from "@cosense-site-kit/theme-utils";
+interface Props {
+  works: CollectionEntry<"pages">[];
+  label?: string;
+  /** 小さめ表示（メンバー一覧のカード下で使う） */
+  small?: boolean;
+}
+const { works, label, small = false } = Astro.props;
+---
+{works.length > 0 && (
+  <div class:list={["work-chips", { "is-small": small }]} data-pagefind-ignore>
+    {label && <span class="work-chips-label">{label}</span>}
+    <ul>
+      {works.map((w) => (
+        <li><a href={path(w.data.slug)}>{w.data.title}</a></li>
+      ))}
+    </ul>
+  </div>
+)}
+
+<style>
+  .work-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.6rem; }
+  .work-chips-label {
+    font-family: "Oswald", var(--font-sans);
+    font-size: 0.8rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+  }
+  ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0.4rem; }
+  a {
+    display: inline-block;
+    padding: 0.2rem 0.7rem;
+    border-radius: 999px;
+    background: var(--color-tag-bg);
+    color: var(--color-tag-text);
+    font-size: 0.8rem;
+    font-weight: 700;
+    line-height: 1.6;
+    text-decoration: none;
+    transition: background 0.15s var(--ease), color 0.15s var(--ease);
+  }
+  a:hover { background: var(--color-accent); color: #fff; text-decoration: none; }
+  .is-small ul { justify-content: center; gap: 0.3rem; }
+  .is-small a { padding: 0.1rem 0.55rem; font-size: 0.72rem; font-weight: 500; }
+</style>

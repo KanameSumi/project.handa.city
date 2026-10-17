@@ -8,3 +8,6 @@ public/cosense-icons/
 .DS_Store
 
 package-lock.json
+
+# Claude の作業メモ
+Claude outputs/

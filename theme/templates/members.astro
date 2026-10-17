@@ -1,0 +1,207 @@
+---
+// /members — 各メンバーが Cosense に作った個人ページを自動で集約する。
+// 年度タブで切り替えて表示（最初は最新年度）。複数年度にいる人も 1 人 1 枚のカードで、
+// 同じ人が同時に 2 回出ることはない。
+//
+// メンバーページの書き方（Cosense 側）:
+//   - タイトル = 名前
+//   - 本文 1 行目 = 一言（役割・所属など）→ カードの説明文になる
+//   - 写真を貼ると最初の 1 枚がカード画像になる
+//   - タグ: #publish #member/2026 （複数年度なら #member/2025 #member/2026 と並べる）
+//
+// 並び順:
+//   1. リーダー（#member/leader）を先頭に
+//   2. それ以外は名前順。読み方を #yomi/やまだたろう で書くと五十音順になる
+//      （書かなければ漢字の並びで比べる）
+//   ※ / の入ったタグはサイト上には表示されない
+import { getCollection } from "astro:content";
+import { path } from "@cosense-site-kit/theme-utils";
+import Layout from "../components/Layout.astro";
+import SectionHeader from "../components/SectionHeader.astro";
+import BackLink from "../components/BackLink.astro";
+import { homeBack } from "../lib/sections";
+import { MEMBER_TAG, sectionInfo } from "../lib/sections";
+
+const info = await sectionInfo("members");
+
+// ---- 並び順の材料 ------------------------------------------------------------
+const tagValue = (tags: string[], prefix: string) =>
+  tags.find((t) => t.toLowerCase().startsWith(`${prefix}/`))?.slice(prefix.length + 1);
+const LEADER_TAGS = ["member/leader", "role/leader", "leader", "リーダー"];
+
+function orderKey(entry: (typeof pages)[number]) {
+  const tags = entry.data.tags;
+  const leader = tags.some((t) => LEADER_TAGS.includes(t.toLowerCase()));
+  const yomi = (tagValue(tags, "yomi") ?? tagValue(tags, "よみ") ?? entry.data.title).normalize("NFKC");
+  return { leader, yomi };
+}
+const pages = await getCollection("pages");
+
+// 1 人 1 件。その人の在籍年度の一覧を持たせる
+const members = pages
+  .map((entry) => {
+    const years = [
+      ...new Set(entry.data.tags.map((t) => t.match(MEMBER_TAG)?.[1]).filter((y): y is string => Boolean(y))),
+    ].sort();
+    return { entry, years };
+  })
+  .filter((m) => m.years.length > 0)
+  .map((m) => ({ ...m, ...orderKey(m.entry) }))
+  .sort(
+    (a, b) =>
+      Number(b.leader) - Number(a.leader) ||
+      a.yomi.localeCompare(b.yomi, "ja") ||
+      a.entry.data.title.localeCompare(b.entry.data.title, "ja"),
+  );
+
+const allYears = [...new Set(members.flatMap((m) => m.years))].sort((a, b) => Number(b) - Number(a));
+const latest = allYears[0];
+
+---
+
+<Layout title={info.ja} description={info.intro} hideToc>
+  <article class="members" data-pagefind-body>
+    <BackLink back={homeBack()} />
+    <SectionHeader en={info.en} title={info.ja} lead={info.intro} />
+
+    {members.length === 0 && <p class="members-empty">まだメンバーが登録されていません。</p>}
+
+    {allYears.length > 0 && (
+      <div class="year-tabs" role="tablist" aria-label="年度" data-pagefind-ignore>
+        {allYears.map((y) => (
+          <button type="button" role="tab" class:list={["year-tab", { "is-active": y === latest }]} data-year={y} aria-selected={y === latest ? "true" : "false"}>
+            {y}
+          </button>
+        ))}
+        {allYears.length > 1 && (
+          <button type="button" role="tab" class="year-tab" data-year="" aria-selected="false">ALL</button>
+        )}
+      </div>
+    )}
+
+    <ul class="members-grid">
+      {members.map(({ entry, years, leader }) => (
+        <li data-years={`|${years.join("|")}|`} hidden={!years.includes(latest)}>
+          <a href={path(entry.data.slug)} class="member-card">
+            {entry.data.image
+              ? <img src={entry.data.image} alt="" loading="lazy" decoding="async" />
+              : (
+                // 写真が無いときは人型のアイコン
+                <span class="member-initial" aria-hidden="true">
+                  <svg viewBox="0 0 64 64" fill="currentColor">
+                    <circle cx="32" cy="24" r="11" />
+                    <path d="M10 60c0-12.2 9.8-21 22-21s22 8.8 22 21z" />
+                  </svg>
+                </span>
+              )}
+            {leader && <span class="member-badge">LEADER</span>}
+            <span class="member-name">{entry.data.title}</span>
+            {entry.data.summary && <span class="member-summary">{entry.data.summary}</span>}
+          </a>
+        </li>
+      ))}
+    </ul>
+  </article>
+</Layout>
+
+<script>
+  const tabs = document.querySelectorAll<HTMLButtonElement>(".year-tab");
+  const cards = document.querySelectorAll<HTMLElement>(".members-grid > li");
+  const show = (year: string) => {
+    tabs.forEach((t) => {
+      const on = t.dataset.year === year;
+      t.classList.toggle("is-active", on);
+      t.setAttribute("aria-selected", String(on));
+    });
+    cards.forEach((c) => {
+      c.hidden = Boolean(year) && !(c.dataset.years ?? "").includes(`|${year}|`);
+    });
+  };
+  tabs.forEach((t) => t.addEventListener("click", () => {
+    show(t.dataset.year ?? "");
+    history.replaceState(null, "", t.dataset.year ? `#y${t.dataset.year}` : "#all");
+  }));
+  // URL の #y2025 / #all で年度を指定して開ける
+  const m = location.hash.match(/^#y(\d{4})$/);
+  if (m && [...tabs].some((t) => t.dataset.year === m[1])) show(m[1]);
+  else if (location.hash === "#all") show("");
+</script>
+
+<style>
+  .year-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin: -0.5rem 0 2rem;
+  }
+  .year-tab {
+    padding: 0.35rem 1.1rem;
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    background: var(--color-bg);
+    color: var(--color-text-soft);
+    font-family: "Oswald", var(--font-sans);
+    font-size: 0.95rem;
+    letter-spacing: 0.08em;
+    cursor: pointer;
+    transition: background 0.15s var(--ease), color 0.15s var(--ease), border-color 0.15s var(--ease);
+  }
+  .year-tab:hover { border-color: var(--color-accent); color: var(--color-accent); }
+  .year-tab.is-active { background: var(--color-accent); border-color: var(--color-accent); color: #fff; }
+
+  .members-grid {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 1rem;
+  }
+  .members-grid > li[hidden] { display: none; }
+  .member-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 0.4rem;
+    padding: 1rem 0.75rem;
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    color: var(--color-text);
+    text-decoration: none;
+    transition: background 0.15s var(--ease);
+    height: 100%;
+  }
+  .member-card:hover { background: var(--color-bg-hover); text-decoration: none; }
+  .member-card img,
+  .member-initial {
+    width: 88px;
+    height: 88px;
+    border-radius: 50%;
+    object-fit: cover;
+    background: var(--color-bg-soft);
+  }
+  .member-initial {
+    display: grid;
+    place-items: end center;
+    overflow: hidden;
+    color: var(--color-text-faint);
+  }
+  .member-initial svg {
+    width: 78%;
+    height: 78%;
+  }
+  .member-name { font-weight: 700; }
+  .member-badge {
+    margin-top: 0.15rem;
+    padding: 0.05rem 0.55rem;
+    border-radius: 999px;
+    background: var(--color-accent);
+    color: #fff;
+    font-family: "Oswald", var(--font-sans);
+    font-size: 0.68rem;
+    letter-spacing: 0.08em;
+  }
+  .member-summary { font-size: 0.85rem; color: var(--color-text-muted); }
+  .members-empty { color: var(--color-text-muted); }
+</style>

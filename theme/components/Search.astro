@@ -1,0 +1,29 @@
+---
+// Header search trigger — just the icon button. The actual search UI (the
+// expanding box + dim backdrop) is rendered at body level by SearchOverlay so
+// it can layer above the backdrop-filtered header; the header script wires this
+// button to it.
+---
+<button
+  type="button"
+  class="site-search-toggle"
+  id="site-search-trigger"
+  aria-label="Search"
+  aria-controls="site-search-overlay"
+  aria-expanded="false"
+>
+  <svg
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="2"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    aria-hidden="true"
+  >
+    <circle cx="11" cy="11" r="7" />
+    <line x1="20" y1="20" x2="16.65" y2="16.65" />
+  </svg>
+</button>

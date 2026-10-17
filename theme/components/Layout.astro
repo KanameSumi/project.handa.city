@@ -1,0 +1,130 @@
+---
+import site from "virtual:cosense-site-kit/site";
+import options from "virtual:cosense-theme-default/options";
+import { path } from "@cosense-site-kit/theme-utils";
+import { loadStructure } from "../lib/config";
+import KaTeXLink from "@cosense-site-kit/theme-utils/components/KaTeXLink.astro";
+import { resolveActiveSkin } from "../presets";
+import CodeBlockEnhancer from "./CodeBlockEnhancer.astro";
+import Footer from "./Footer.astro";
+import Header from "./Header.astro";
+import Lightbox from "./Lightbox.astro";
+import LinkPreview from "./LinkPreview.astro";
+import SearchOverlay from "./SearchOverlay.astro";
+import Splash from "./Splash.astro";
+import TableOfContents from "./TableOfContents.astro";
+import "../styles/global.css";
+import "../styles/handa.css";
+
+interface Props {
+  title: string;
+  description?: string;
+  /** Hide the floating right-side TOC (use on home / archive / tag pages). */
+  hideToc?: boolean;
+  /** OG/Twitter card image (absolute or site-relative). Falls back to favicon. */
+  image?: string;
+  /** OpenGraph type. "article" for content pages, "website" for indexes. */
+  ogType?: "website" | "article";
+}
+
+const { title, description, hideToc = false, image, ogType = "website" } = Astro.props;
+
+const siteTitle =
+  options.siteTitle ?? site?.title ?? (Astro.site ? new URL("/", Astro.site).hostname : title);
+const fullTitle = siteTitle && siteTitle !== title ? `${title} | ${siteTitle}` : title;
+const metaDescription = description ?? site?.description ?? "";
+const lang = site?.lang ?? "ja";
+
+// SEO/social. canonical + og:url come from the current path against the
+// configured site origin; og:image resolves to absolute (page image, else the
+// favicon). Built here so every template that uses Layout gets cards for free.
+const canonical = Astro.site ? new URL(Astro.url.pathname, Astro.site).href : undefined;
+// HAnDA: public/ のファイルを指すときの頭（GitHub Pages のサブパスにも対応）
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+// SNS で共有されたときの画像：ページの画像 → 無ければロゴ
+const imageSrc = image ?? `${base}/favicon-512.png`;
+const ogImage = imageSrc && Astro.site ? new URL(imageSrc, Astro.site).href : imageSrc;
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": ogType === "article" ? "Article" : "WebSite",
+  name: title,
+  headline: title,
+  ...(metaDescription ? { description: metaDescription } : {}),
+  ...(canonical ? { url: canonical } : {}),
+  ...(ogImage ? { image: ogImage } : {}),
+};
+
+// Preset (skin) support. The active skin comes from `.site` YAML `theme.skin`
+// (operator-controlled, switchable in Cosense with no repo edit) and falls back
+// to the preset wired in astro.config.ts. Token overrides go on the <html>
+// inline style so they beat the :root defaults in global.css regardless of
+// stylesheet order; fonts are preset-driven (they load via a <link>).
+const structure = await loadStructure();
+const { tokens, colorScheme, fontHref } = resolveActiveSkin(structure.theme?.skin, options);
+// Only advertise the feed when the site actually declares a posts tag.
+const hasFeed = Boolean(structure.posts?.tag);
+const htmlStyle = [
+  colorScheme ? `color-scheme:${colorScheme}` : null,
+  ...Object.entries(tokens).map(([k, v]) => `${k}:${v}`),
+]
+  .filter(Boolean)
+  .join(";");
+---
+<!doctype html>
+<html lang={lang} data-theme={colorScheme ?? undefined} style={htmlStyle || undefined}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    {metaDescription && <meta name="description" content={metaDescription} />}
+    {canonical && <link rel="canonical" href={canonical} />}
+    {/* HAnDA: タブのアイコンはロゴ（public/favicon.ico・favicon-512.png・apple-touch-icon.png） */}
+    <link rel="icon" href={`${base}/favicon.ico`} sizes="48x48" />
+    <link rel="icon" href={`${base}/favicon-512.png`} type="image/png" sizes="512x512" />
+    <link rel="apple-touch-icon" href={`${base}/apple-touch-icon.png`} />
+    {hasFeed && (
+      <link rel="alternate" type="application/rss+xml" title={`${siteTitle} feed`} href={path("feed.xml")} />
+    )}
+
+    {/* OpenGraph */}
+    <meta property="og:type" content={ogType} />
+    <meta property="og:title" content={title} />
+    {metaDescription && <meta property="og:description" content={metaDescription} />}
+    <meta property="og:site_name" content={siteTitle} />
+    {canonical && <meta property="og:url" content={canonical} />}
+    {ogImage && <meta property="og:image" content={ogImage} />}
+
+    {/* Twitter card — only go large when the page has its own image (not the
+        favicon fallback), otherwise a small summary card. */}
+    <meta name="twitter:card" content={image ? "summary_large_image" : "summary"} />
+    <meta name="twitter:title" content={title} />
+    {metaDescription && <meta name="twitter:description" content={metaDescription} />}
+    {ogImage && <meta name="twitter:image" content={ogImage} />}
+
+    {/* Escape "<" so remote page titles can't close the script tag (XSS). */}
+    <script type="application/ld+json" set:html={JSON.stringify(jsonLd).replace(/</g, "\\u003c")} is:inline />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    {fontHref ? (
+      <link href={fontHref} rel="stylesheet" />
+    ) : (
+      <link
+        href="https://fonts.googleapis.com/css2?family=M+PLUS+2:wght@400;500;700&family=M+PLUS+1+Code:wght@400;500&display=swap"
+        rel="stylesheet"
+      />
+    )}
+    <KaTeXLink />
+    <title>{fullTitle}</title>
+  </head>
+  <body>
+    {/* HAnDA: 最初に開いたときのロード画面 */}
+    <Splash />
+    <Header currentPath={Astro.url.pathname} />
+    {options.search && <SearchOverlay />}
+    <main class="site-main"><slot /></main>
+    <Footer />
+    {!hideToc && <TableOfContents />}
+    <CodeBlockEnhancer />
+    <LinkPreview />
+    <Lightbox />
+  </body>
+</html>

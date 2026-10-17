@@ -1,0 +1,73 @@
+---
+import { getCollection } from "astro:content";
+import { isPublicTag } from "@cosense-site-kit/theme-utils";
+import type { GetStaticPaths, PaginateFunction } from "astro";
+import EntryCard from "../components/EntryCard.astro";
+import Layout from "../components/Layout.astro";
+import Pagination from "../components/Pagination.astro";
+import { POSTS_PER_PAGE } from "../constants";
+
+// /tags/[tag]/[...page] — paginated list of pages carrying a tag. Page 1 is
+// /tags/<tag>; later pages are /tags/<tag>/2, …
+export const getStaticPaths: GetStaticPaths = async ({ paginate }) => {
+  const pages = await getCollection("pages");
+  const tagMap = new Map<string, typeof pages>();
+  for (const entry of pages) {
+    for (const tag of entry.data.tags) {
+      // Skip namespaced metadata tags (template/foo, slug/foo). They aren't
+      // categories users browse, and slashes can't sit inside a [tag] segment.
+      if (!isPublicTag(tag)) continue;
+      const list = tagMap.get(tag) ?? [];
+      list.push(entry);
+      tagMap.set(tag, list);
+    }
+  }
+
+  // Newest first, matching home and /posts — getCollection order is the
+  // loader's internal order, not a presentation order.
+  for (const list of tagMap.values()) {
+    list.sort((a, b) => (b.data.publishedAt ?? "").localeCompare(a.data.publishedAt ?? ""));
+  }
+
+  return Array.from(tagMap.entries()).flatMap(([tag, entries]) =>
+    (paginate as PaginateFunction)(entries, { pageSize: POSTS_PER_PAGE, params: { tag } }).map(
+      (route) => ({
+        params: route.params,
+        props: {
+          tag,
+          total: entries.length,
+          entries: route.props.page.data,
+          pageInfo: {
+            current: route.props.page.currentPage,
+            last: route.props.page.lastPage,
+            prevUrl: route.props.page.url.prev,
+            nextUrl: route.props.page.url.next,
+          },
+        },
+      }),
+    ),
+  );
+};
+
+type Entry = Awaited<ReturnType<typeof getCollection<"pages">>>[number];
+const { tag } = Astro.params;
+const { entries, total, pageInfo } = Astro.props as {
+  entries: Entry[];
+  total: number;
+  pageInfo: { current: number; last: number; prevUrl?: string; nextUrl?: string };
+};
+---
+<Layout title={`#${tag}`} hideToc>
+  <header class="page-header">
+    <h1>#{tag}</h1>
+    <p class="summary" style="font-size: 0.875rem; color: var(--color-text-muted)">
+      {total} page{total === 1 ? "" : "s"}
+    </p>
+  </header>
+  <ul class="tag-page-list">
+    {entries.map((entry) => (
+      <EntryCard entry={entry} />
+    ))}
+  </ul>
+  <Pagination {...pageInfo} />
+</Layout>

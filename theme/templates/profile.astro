@@ -1,0 +1,96 @@
+---
+import type { CollectionEntry } from "astro:content";
+import { path } from "@cosense-site-kit/theme-utils";
+import PageContent from "../components/Content.astro"; // HAnDA: 外部 URL をリンクカードにする版
+import BackLink from "../components/BackLink.astro";
+import Layout from "../components/Layout.astro";
+import SectionHeader from "../components/SectionHeader.astro";
+import WorkChips from "../components/WorkChips.astro";
+import { MEMBER_TAG, backLinkFor, loadSections, worksForMember } from "../lib/sections";
+
+// Profile template: a slim hero band over the body, no tag chips, and a
+// "more pages" footer pointing back into the rest of the site. Suitable for
+// About / Members / Bio pages.
+//
+// Opt in by tagging the Cosense page with `#template/profile`, or by mapping
+// the title in `.site` site.yaml:
+//
+//   templates:
+//     "About Me": profile
+
+interface Props {
+  entry: CollectionEntry<"pages">;
+}
+
+const { entry } = Astro.props;
+const page = entry.data;
+// HAnDA: ナビに載っているページなら英語ラベルを、詳細ページなら一覧へ戻るリンクを出す
+const navSection = (await loadSections()).find((s) => s.entry?.data.slug === page.slug);
+const back = await backLinkFor(page.tags);
+// メンバーページなら、関わった活動・成果をタグで出す
+const isMember = page.tags.some((t) => MEMBER_TAG.test(t));
+const memberWorks = isMember ? await worksForMember(entry) : [];
+
+// 本文に活動へのリンクだけの行がある場合、下の WORKS タグと重複するので本文からは消す
+const workTitles = new Set(memberWorks.map((w) => w.data.title.trim().toLowerCase()));
+type Inline = { type: string; value?: string; title?: string; children?: Inline[] };
+const onlyWorkLinks = (nodes: Inline[] | undefined): boolean => {
+  const meaningful = (nodes ?? []).filter((n) => !(n.type === "text" && !(n.value ?? "").trim()));
+  return (
+    meaningful.length > 0 &&
+    meaningful.every((n) => n.type === "pageLink" && workTitles.has((n.title ?? "").trim().toLowerCase()))
+  );
+};
+const blocks = workTitles.size
+  ? page.blocks.filter((b) => !(("children" in b) && (b.type === "paragraph" || b.type === "list") && onlyWorkLinks(b.children as Inline[])))
+  : page.blocks;
+---
+<Layout title={page.title} description={page.summary} image={page.image} ogType="article">
+  <article class="profile" data-pagefind-body>
+    <BackLink back={back} />
+    <SectionHeader en={navSection?.en ?? back?.en} title={page.title} />
+
+    <PageContent blocks={blocks} />
+
+    {/* メンバーページ：関わった活動（名前・写真・本文の下に表示） */}
+    {memberWorks.length > 0 && (
+      <div class="profile-works"><WorkChips works={memberWorks} label="Works" /></div>
+    )}
+
+    <footer class="profile-source" data-pagefind-ignore>
+      <a href={page.sourceUrl} target="_blank" rel="noopener noreferrer">Source on Cosense ↗</a>
+      {" · "}
+      <a href={back?.href ?? path("")}>← {back?.label ?? "トップへ"}</a>
+    </footer>
+  </article>
+</Layout>
+
+<style>
+  .profile-works { margin: 2rem 0 0; padding-top: 1.25rem; border-top: 1px solid var(--color-divider); }
+  .profile-hero {
+    text-align: center;
+    padding: 2.5rem 1rem 2rem;
+    border-bottom: 1px solid var(--color-divider);
+    margin-bottom: 2.5rem;
+  }
+  .profile-hero h1 {
+    font-size: 2.5rem;
+    margin: 0 0 0.625rem;
+    letter-spacing: 0.06em;
+  }
+  .profile-summary {
+    color: var(--color-text-muted);
+    font-size: 1.0625rem;
+    max-width: 36rem;
+    margin: 0 auto;
+    line-height: 1.55;
+  }
+  .profile-source {
+    margin-top: 3rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--color-divider);
+    color: var(--color-text-muted);
+    text-align: center;
+    font-size: 0.8125rem;
+  }
+</style>
