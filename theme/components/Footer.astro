@@ -1,7 +1,7 @@
 ---
 // HAnDA: フッター。
 //   - ポリシーへのリンク（handa.config.ts の policies）
-//   - 著作権表示：© 年 名義. All Rights Reserved.（名義は handa.config.ts の copyright.holder）
+//   - 著作権表示：© 年 名義（名義は handa.config.ts の copyright.holder）
 import { path } from "@cosense-site-kit/theme-utils";
 import { handaConfig } from "../lib/config";
 
@@ -17,7 +17,7 @@ const links = handaConfig.policies.map((p) => ({ label: p.title, href: path(p.sl
       </nav>
     )}
     <p class="footer-copy">
-      &copy; {year} {holder}. All Rights Reserved.
+      &copy; {year} {holder}
     </p>
     <p class="footer-built">
       Built with <a href="https://github.com/shinyaoguri/cosense-site-kit" target="_blank" rel="noopener noreferrer">cosense-site-kit</a>

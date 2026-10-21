@@ -71,6 +71,8 @@ const isActive = (href: string): boolean => {
                     {en === ja ? item.label : (
                       <Fragment><span class="nav-en">{en}</span><span class="nav-ja">{ja}</span></Fragment>
                     )}
+                    {/* HAnDA: いまのページを示す青い線。ページを移るとき次のメニューへ滑っていく */}
+                    <span class="nav-mark" aria-hidden="true"></span>
                   </a>
                 </li>
               );
@@ -195,6 +197,63 @@ const isActive = (href: string): boolean => {
         setSearch(false);
       }
     });
+    // ── HAnDA：画面遷移の手ごたえ ────────────────────────────────
+    // 1) メニューを押した位置から赤い波紋が広がる
+    // 2) 押したら、いまのページの赤い線が押したメニューへ滑り出す
+    //    （続きは次のページで view transition が引き継いで、ぴたりと止まる）
+    // 3) ヘッダーの下に読み込み中の細い線を走らせる（次のページで最後まで伸びて消える）
+    const navList = header.querySelector<HTMLElement>(".site-nav");
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const isDesktop = window.matchMedia("(min-width: 721px)");
+
+    navList?.addEventListener("pointerdown", (e) => {
+      const a = (e.target as HTMLElement).closest<HTMLAnchorElement>("a");
+      if (!a || reduceMotion.matches) return;
+      const r = a.getBoundingClientRect();
+      a.style.setProperty("--rx", `${e.clientX - r.left}px`);
+      a.style.setProperty("--ry", `${e.clientY - r.top}px`);
+      a.classList.remove("is-rippling");
+      void a.offsetWidth; // 連打でも毎回最初から再生する
+      a.classList.add("is-rippling");
+    });
+    navList?.addEventListener("animationend", (e) => {
+      (e.target as HTMLElement).closest("a")?.classList.remove("is-rippling");
+    });
+
+    const slideMark = (to: HTMLAnchorElement) => {
+      if (!navList || !isDesktop.matches) return;
+      const from = navList.querySelector<HTMLAnchorElement>("a.is-active");
+      if (!from || from === to) return;
+      const mark = from.querySelector<HTMLElement>(".nav-mark");
+      if (!mark) return;
+      const a = from.getBoundingClientRect();
+      const b = to.getBoundingClientRect();
+      const dx = b.left + b.width / 2 - (a.left + a.width / 2);
+      mark.style.transform = `translateX(${dx}px) scaleX(${b.width / a.width})`;
+    };
+
+    document.addEventListener("click", (e) => {
+      if (e.defaultPrevented || e.button !== 0) return;
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      const a = (e.target as HTMLElement).closest<HTMLAnchorElement>("a[href]");
+      if (!a || a.hasAttribute("download")) return;
+      if (a.target && a.target !== "_self") return;
+      const url = new URL(a.href, location.href);
+      if (url.origin !== location.origin) return;
+      // 同じページ内のジャンプ（#目次など）や、いま開いているページは対象外
+      if (url.pathname === location.pathname && url.search === location.search) return;
+      document.documentElement.classList.add("is-leaving");
+      a.classList.add("is-going");
+      if (a.closest(".site-nav")) slideMark(a);
+    });
+    // 「戻る」でキャッシュから復元されたときは、押した状態を元に戻す
+    window.addEventListener("pageshow", (e) => {
+      if (!e.persisted) return;
+      document.documentElement.classList.remove("is-leaving");
+      document.querySelectorAll(".is-going").forEach((el) => el.classList.remove("is-going"));
+      header.querySelectorAll<HTMLElement>(".nav-mark").forEach((el) => (el.style.transform = ""));
+    });
+
     document.addEventListener("click", (e) => {
       // Close the nav menu on an outside click. The search overlay closes via
       // its own backdrop, so leave it alone here.

@@ -42,6 +42,7 @@ export const presetHanda: ThemeDefaultPreset = {
     "--color-callout-border": "#d6e1f0",
     "--color-tag-bg": "rgb(22 88 160 / 0.09)",
     "--color-tag-text": BLUE,
+    "--color-blue": BLUE, // メニューの下の線など
     "--color-header-bg": "rgb(255 255 255 / 0.92)",
     "--font-sans":
       '"BIZ UDPGothic", -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic UI", sans-serif',

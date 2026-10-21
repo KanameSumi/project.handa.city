@@ -8,6 +8,7 @@ import type { ComponentProps } from "astro/types";
 import PageContent from "@cosense-site-kit/theme-utils/components/PageContent.astro";
 import { resolveEmbed } from "@cosense-site-kit/theme-utils";
 import LinkCard from "./LinkCard.astro";
+import Pinned from "./Pinned.astro"; // 写真を「貼ってある」見た目に
 import { isSeparator } from "../lib/separator";
 
 type Props = ComponentProps<typeof PageContent>;
@@ -52,6 +53,7 @@ const morphSeg =
   props.morphImageUrl &&
   segs.findIndex((s) => s.kind === "blocks" && s.blocks.some((b) => b.type === "image" && (b.src ?? b.url) === props.morphImageUrl));
 ---
+<Pinned>
 {segs.every((s) => s.kind === "blocks") ? (
   <PageContent {...props} blocks={blocks as unknown as Props["blocks"]} />
 ) : (
@@ -68,3 +70,4 @@ const morphSeg =
     ),
   )
 )}
+</Pinned>

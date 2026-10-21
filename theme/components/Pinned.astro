@@ -1,0 +1,6 @@
+---
+// HAnDA: 中身（本文）の写真を「貼ってある」見た目にする包み。lib/pinned.ts を参照
+import { pinPhotos } from "../lib/pinned";
+const html = Astro.slots.has("default") ? await Astro.slots.render("default") : "";
+---
+<Fragment set:html={pinPhotos(html)} />

@@ -68,6 +68,9 @@ h2, h3, h4, h5, h6 { letter-spacing: 0.03em; }
   text-decoration: none;
 }
 
+/* ---- 赤文字（Cosense で $$ と $$ で挟んだ文字。theme/lib/redText.ts） ---- */
+.red-text { color: var(--color-accent); font-weight: 700; }
+
 /* ---- 本文中の設定用タグ（#slug/… #template/… #member/2026 など）は表示しない ---- */
 .tag-meta { display: none; }
 
@@ -199,4 +202,347 @@ html {
 html { scroll-behavior: smooth; }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
+}
+
+
+/* ==========================================================================
+   画面遷移：ヘッダー・背景・白いパネルはそのままで、
+   パネルの中身だけが静かにフェードして入れ替わる（約0.35秒）。
+   Chrome・Safari 18.2 以降などで動き、対応していないブラウザは普通に切り替わる
+   ========================================================================== */
+
+/* スクロールバーの有無でページの位置が左右にずれないよう、いつも場所を確保しておく */
+html { overflow-y: scroll; }
+
+/* 白いパネルの「土台」。画面いっぱいの高さで固定しておき、切り替えの途中で
+   パネルが消えてレンガが透けて見える（チカっとする）のを防ぐ */
+body::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: min(100%, var(--panel-width));
+  transform: translateX(-50%);
+  background: var(--color-bg);
+  z-index: -1;
+  pointer-events: none;
+}
+
+/* 前のページの中身と次のページの中身に別々の名前を付け、
+   前の中身は「見ていた位置のまま」消え、次の中身は自分の位置に現れるようにする。
+   （同じ名前だと、前の中身がページの先頭に引き戻されて、
+     ホームの写真などが一瞬だけ映り込んでいた）
+   html.vt-old は Layout.astro のスクリプトが、ページを離れる直前に付ける */
+.site-main { view-transition-name: page-main; }
+.site-footer { view-transition-name: page-footer; }
+html.vt-old .site-main { view-transition-name: page-main-old; }
+html.vt-old .site-footer { view-transition-name: page-footer-old; }
+
+/* カードの画像やタイトルが別々に飛んでくると落ち着かないので、中身はまとめて動かす */
+[style*="view-transition-name"] { view-transition-name: none !important; }
+
+/* 背景（レンガと白いパネル）は動かさない */
+::view-transition-old(root),
+::view-transition-new(root) { animation: none; }
+
+/* 前の中身はすっと消え、次の中身はほんの少し下からフェードイン */
+::view-transition-group(*) { animation-duration: 0.4s; }
+::view-transition-old(page-main-old),
+::view-transition-old(page-footer-old) {
+  animation: vt-fade-out 0.15s ease-out both;
+}
+::view-transition-new(page-main),
+::view-transition-new(page-footer) {
+  animation: vt-fade-in 0.3s ease-out 0.08s both;
+}
+@keyframes vt-fade-out { to { opacity: 0; } }
+
+/* 次のページの写真を読み込んでいる間は、中身を出さずに待つ（Layout.astro の vt-wait） */
+html.vt-wait::view-transition-new(page-main),
+html.vt-wait::view-transition-new(page-footer) {
+  animation-play-state: paused;
+}
+/* 待っている間は、読み込み中の線を8割の位置で止めておく */
+html.vt-wait .site-header-inner::after {
+  opacity: 1;
+  transform: scaleX(0.8);
+}
+@keyframes vt-fade-in { from { opacity: 0; transform: translateY(6px); } }
+
+/* メニューの並びで右へ進むときは右から、左（ホーム側）へ戻るときは左から入る。
+   向きは Layout.astro の小さなスクリプトが決める */
+html:active-view-transition-type(forward) ::view-transition-old(page-main-old) {
+  animation: vt-out-left 0.18s ease-in both;
+}
+html:active-view-transition-type(forward) ::view-transition-new(page-main) {
+  animation: vt-in-right 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) 0.08s both;
+}
+html:active-view-transition-type(backward) ::view-transition-old(page-main-old) {
+  animation: vt-out-right 0.18s ease-in both;
+}
+html:active-view-transition-type(backward) ::view-transition-new(page-main) {
+  animation: vt-in-left 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) 0.08s both;
+}
+@keyframes vt-out-left  { to   { opacity: 0; transform: translateX(-24px); } }
+@keyframes vt-out-right { to   { opacity: 0; transform: translateX(24px); } }
+@keyframes vt-in-right  { from { opacity: 0; transform: translateX(36px); } }
+@keyframes vt-in-left   { from { opacity: 0; transform: translateX(-36px); } }
+
+/* カード（ブログ・成果など）を押したら、少し沈んで「押した」ことが分かるように */
+html .card-link:active,
+html .about-card:active,
+html .card-link.is-going,
+html .about-card.is-going {
+  transform: scale(0.98);
+  border-color: var(--color-accent);
+}
+
+/* ---- メニューを押したときの手ごたえ ------------------------------------- */
+.site-nav a {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  transition:
+    background 0.15s var(--ease),
+    color 0.15s var(--ease),
+    transform 0.12s var(--ease);
+}
+/* 押している間は少し沈む */
+.site-nav a:active { transform: scale(0.94); }
+
+/* 押した位置から広がる赤い波紋 */
+.site-nav a::before {
+  content: "";
+  position: absolute;
+  left: var(--rx, 50%);
+  top: var(--ry, 50%);
+  width: 12px;
+  height: 12px;
+  margin: -6px 0 0 -6px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  opacity: 0;
+  transform: scale(0);
+  pointer-events: none;
+  z-index: -1;
+}
+.site-nav a.is-rippling::before { animation: nav-ripple 0.55s ease-out; }
+@keyframes nav-ripple {
+  0%   { opacity: 0.22; transform: scale(0); }
+  100% { opacity: 0;    transform: scale(16); }
+}
+
+/* 押したメニューはすぐ赤く */
+.site-nav a.is-going .nav-en { color: var(--color-accent); }
+
+/* 線のぶん、メニューの下に少し余白をとる */
+.site-nav a:has(.nav-mark) { padding-bottom: 0.65rem; }
+
+/* いまのページを示す青い線。ページを移るとき、押したメニューへ滑っていく */
+.nav-mark {
+  position: absolute;
+  left: 0.75rem;
+  right: 0.75rem;
+  bottom: 2px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--color-blue);
+  transform: scaleX(0);
+  transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+  pointer-events: none;
+}
+.site-nav a.is-active .nav-mark {
+  transform: scaleX(1);
+  view-transition-name: nav-mark;
+}
+/* ホームなど、どのメニューにも当たらないページから押したときは、その場で線が伸びる */
+html.is-leaving .site-nav:not(:has(a.is-active)) a.is-going .nav-mark {
+  transform: scaleX(1);
+  view-transition-name: nav-mark;
+}
+::view-transition-group(nav-mark) {
+  animation-duration: 0.45s;
+  animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+/* スマホ（縦に開くメニュー）では線は出さない */
+@media (max-width: 720px) {
+  .nav-mark { display: none; }
+  .site-nav a:has(.nav-mark) { padding-bottom: 0.5rem; }
+}
+
+/* ---- 読み込み中の線（ヘッダーの下） ------------------------------------- */
+.site-header-inner { position: relative; }
+.site-header-inner::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  background: var(--color-accent);
+  transform: scaleX(0);
+  transform-origin: left;
+  opacity: 0;
+  pointer-events: none;
+}
+/* 押したら走り出し、8割ほどで次のページを待つ */
+html.is-leaving .site-header-inner::after {
+  opacity: 1;
+  animation: vt-progress 1.6s cubic-bezier(0.1, 0.7, 0.3, 1) forwards;
+}
+/* 次のページで最後まで伸びて、すっと消える */
+html.is-arriving .site-header-inner::after {
+  animation: vt-progress-done 0.6s ease-out forwards;
+}
+@keyframes vt-progress {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(0.8); }
+}
+@keyframes vt-progress-done {
+  0%   { transform: scaleX(0.6); opacity: 1; }
+  60%  { transform: scaleX(1);   opacity: 1; }
+  100% { transform: scaleX(1);   opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .site-main, .site-footer,
+  html.vt-old .site-main, html.vt-old .site-footer { view-transition-name: none; }
+  html .card-link:active, html .about-card:active,
+  html .card-link.is-going, html .about-card.is-going,
+  .site-nav a:active { transform: none; }
+  .nav-mark { transition: none; }
+  .site-nav a.is-active .nav-mark { view-transition-name: none; }
+}
+
+/* ==========================================================================
+   貼ってある写真（本文の写真。theme/lib/pinned.ts が包む）
+   白いふちの紙に印刷した写真を、マスキングテープや画鋲で留めたように見せる
+   ========================================================================== */
+.page-content .pinned {
+  position: relative;
+  display: block;
+  width: fit-content;
+  max-width: calc(100% - 1rem);
+  margin: 2.2rem auto;
+  padding: 10px 10px 12px;
+  background: #fff;
+  box-shadow:
+    0 1px 2px rgb(0 0 0 / 0.14),
+    0 10px 24px -6px rgb(0 0 0 / 0.16);
+  transform: rotate(var(--tilt, 0deg));
+  /* 回転の中心を画鋲の位置（上の真ん中）にする */
+  transform-origin: 50% 1px;
+  /* 振り子のように、行き過ぎては戻ってを繰り返しながら止まる */
+  transition:
+    transform 1.4s linear(0, 1.45 14%, 0.68 29%, 1.22 43%, 0.86 57%, 1.08 70%, 0.96 82%, 1.01 91%, 1),
+    box-shadow 0.3s var(--ease);
+}
+.page-content .pinned img {
+  margin: 0;
+  border-radius: 0;
+}
+.page-content .pinned a { display: block; }
+/* カーソルを乗せると、画鋲を軸にゆらゆら揺れてまっすぐになる。離すと元の傾きへ揺れ戻る */
+.page-content .pinned:hover {
+  transform: rotate(0deg);
+  animation: pin-swing 1.8s ease-in-out;
+  box-shadow:
+    0 2px 4px rgb(0 0 0 / 0.12),
+    0 16px 32px -8px rgb(0 0 0 / 0.2);
+}
+
+/* 揺れの大きさは写真の傾き（--tilt）に比例。傾きと逆側へ大きく振れてから、だんだん小さく */
+@keyframes pin-swing {
+  0%   { transform: rotate(var(--tilt)); }
+  16%  { transform: rotate(calc(var(--tilt) * -2.6)); }
+  33%  { transform: rotate(calc(var(--tilt) * 1.7)); }
+  50%  { transform: rotate(calc(var(--tilt) * -1)); }
+  67%  { transform: rotate(calc(var(--tilt) * 0.55)); }
+  84%  { transform: rotate(calc(var(--tilt) * -0.22)); }
+  100% { transform: rotate(0deg); }
+}
+
+/* マスキングテープ（端を少しギザギザに） */
+.pinned--tape1::before,
+.pinned--tape2::before,
+.pinned--tape2::after {
+  content: "";
+  position: absolute;
+  width: 88px;
+  height: 26px;
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 0.25), rgb(255 255 255 / 0) 40%, rgb(0 0 0 / 0.04)),
+    var(--tape);
+  /* 手でちぎったような、左右の端のギザギザ */
+  clip-path: polygon(
+    0 0, 100% 0, 97% 12%, 100% 25%, 97% 38%, 100% 50%, 97% 62%, 100% 75%, 97% 88%, 100% 100%,
+    0 100%, 3% 88%, 0 75%, 3% 62%, 0 50%, 3% 38%, 0 25%, 3% 12%
+  );
+  pointer-events: none;
+  z-index: 1;
+}
+/* 上の真ん中に1本 */
+.pinned--tape1::before {
+  top: -13px;
+  left: 50%;
+  transform: translateX(-50%) rotate(-2deg);
+  width: 110px;
+}
+/* 左上と右上に斜めに1本ずつ */
+.pinned--tape2::before {
+  top: 2px;
+  left: -26px;
+  transform: rotate(-38deg);
+}
+.pinned--tape2::after {
+  top: 2px;
+  right: -26px;
+  transform: rotate(38deg);
+}
+
+/* 画鋲（ロゴの赤） */
+.pinned--pin::before {
+  content: "";
+  position: absolute;
+  top: -9px;
+  left: 50%;
+  width: 20px;
+  height: 20px;
+  margin-left: -10px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #ff7a8a 0 14%, #e8243c 30%, #b30f24 75%, #8d0a1b 100%);
+  box-shadow:
+    0 2px 2px rgb(0 0 0 / 0.25),
+    3px 6px 5px -1px rgb(0 0 0 / 0.18);
+  pointer-events: none;
+  z-index: 1;
+}
+/* 画鋲の影がつくる、紙のちょっとしたへこみ */
+.pinned--pin::after {
+  content: "";
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  width: 6px;
+  height: 6px;
+  margin-left: 2px;
+  border-radius: 50%;
+  background: rgb(0 0 0 / 0.12);
+  filter: blur(1.5px);
+  pointer-events: none;
+}
+
+@media (max-width: 720px) {
+  .page-content .pinned { padding: 7px 7px 9px; margin: 1.8rem auto; }
+  .pinned--tape1::before { width: 84px; height: 22px; top: -11px; }
+  .pinned--tape2::before,
+  .pinned--tape2::after { width: 64px; height: 20px; }
+  .pinned--tape2::before { left: -18px; }
+  .pinned--tape2::after { right: -18px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-content .pinned { transition: none; }
+  .page-content .pinned:hover { animation: none; }
 }
