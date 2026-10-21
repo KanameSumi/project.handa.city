@@ -10,6 +10,10 @@ import themeDefault, { presetHanda } from "./theme/index";
 //                       未指定なら賢いデフォルトが効きます。下の値はデモ兼サンプルなので、
 //                       自分のサイトに合わせて書き換えてください。
 export default defineConfig({
+  // リンクにカーソルを乗せた時点（スマホは画面に入った時点）で次のページを先読みし、
+  // クリックしたらすぐ切り替わるようにする
+  prefetch: { prefetchAll: true, defaultStrategy: "hover" },
+
   integrations: [
     cosense({ configFile: "./cosense.config.ts" }),
 
