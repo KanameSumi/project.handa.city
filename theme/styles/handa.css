@@ -124,10 +124,31 @@ html {
   border-bottom: 1px solid var(--color-border);
 }
 
+/* ヘッダーは最初から「浮いた板」：画面の上から少し離れ、角の丸い影付きの板としてついてくる。
+   右端のスクロールバーと同じ「手前の層」に見えるので、後ろで動くレンガの壁との差が自然になる */
+.site-header {
+  top: 10px;
+  margin-top: 10px;
+}
+.site-header .site-header-inner {
+  max-width: min(calc(var(--panel-width) - 2.5rem), calc(100% - 2.5rem));
+  border-radius: 6px;
+  border-bottom-color: transparent;
+  box-shadow:
+    0 1px 0 rgb(0 0 0 / 0.04),
+    0 12px 28px -12px rgb(0 0 0 / 0.28);
+}
+@media (max-width: 720px) {
+  .site-header { top: 8px; margin-top: 8px; }
+  .site-header .site-header-inner { max-width: calc(100% - 16px); }
+}
+
 /* 本文パネル：余裕のある白。中の文章は読みやすい幅に収める */
 .site-main {
+  /* 上の余白：浮いたヘッダーの下から本文までの間（トップの写真はこのぶん上へ詰める） */
+  --main-top: 2.75rem;
   max-width: var(--panel-width);
-  padding: 5rem 3.5rem 7rem;
+  padding: var(--main-top) 3.5rem 7rem;
   background: var(--color-bg);
 }
 .site-main > * {
@@ -149,7 +170,7 @@ html {
 
 @media (max-width: 720px) {
   .site-header-inner { padding-left: 1rem; padding-right: 1rem; }
-  .site-main { padding: 2.5rem 1.25rem 4rem; }
+  .site-main { --main-top: 1.75rem; padding: var(--main-top) 1.25rem 4rem; }
 }
 
 /* ---- スマホのメニュー：開閉のモーション ------------------------------------

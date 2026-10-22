@@ -47,6 +47,7 @@ function optimize(id: string): Promise<Optimized | null> {
 // parent = 写真のすぐ外側のタグの class、w = 写真の元の幅
 function sizesFor(tag: string, parent: string, w: number): string {
   const cap = (px: number) => `${Math.min(w, px)}px`;
+  if (/hero-glow/.test(tag)) return "160px"; // スライドの光（大きくぼかすので小さい画像で十分）
   if (/hero-slide/.test(tag)) return "(max-width: 720px) 100vw, 68rem"; // トップのスライド
   if (/member-card/.test(parent)) return "64px"; // メンバーの顔写真
   if (/card-thumb|\bthumb\b|about-card/.test(parent)) return "(max-width: 720px) 45vw, 360px"; // 一覧のカード

@@ -1,9 +1,10 @@
 ---
 // HAnDA: 白いパネルの右端に置くスクロールバー。
 // 画面の端（レンガの外）にあるブラウザのスクロールバーは隠して、代わりにこれを出す。
+// - 最初は表示しない。スクロールしている間だけ出て、止まると上へしゅっと抜けて消える
 // - つまみは、背景の壁のレンガと同じ色の細い線（模様なし・溝の線も出さない）。
 //   スクロール中・カーソルを乗せたときは少し濃いレンガ、つかんでいる間はロゴの赤
-// - 写真の上に重なるところでは消える
+// - 本文の写真の上に重なるところでは消える（トップの大きな写真の上では消さずに白くする）
 // - つまみをドラッグして動かせる。溝をクリックするとその位置へ移る
 // - ホイール・キーボード・トラックパッドのスクロールはブラウザのまま
 // - マウスなどで操作しているときだけ（スマホ・タブレットは OS のスクロールバーのまま）
@@ -28,7 +29,10 @@
 
     // 溝の位置と、つまみの大きさを計算し直す
     const measure = () => {
-      trackTop = (header?.getBoundingClientRect().height ?? 0) + 10;
+      // メニューバー（浮いた板）の上端の高さから始める。スクロールバーはパネルの右端にあり、
+      // 板より外側なので重ならない。上の方は CSS でだんだん薄くしている
+      const headerBox = header?.querySelector(".site-header-inner") ?? header;
+      trackTop = Math.max(0, headerBox?.getBoundingClientRect().top ?? 0);
       trackH = window.innerHeight - trackTop - 10;
       maxScroll = root.scrollHeight - window.innerHeight;
       bar.style.top = `${trackTop}px`;
@@ -48,9 +52,13 @@
       const r = thumb.getBoundingClientRect();
       const x = r.left + r.width / 2;
       const over = [r.top + 2, r.top + r.height / 2, r.bottom - 2].some((y) =>
-        document.elementsFromPoint(x, y).some((el) => el !== bar && el !== thumb && el.matches("img, video, iframe, .hero-slides, .pinned")),
+        document.elementsFromPoint(x, y).some((el) => el !== bar && el !== thumb && el.matches("img:not(.hero-slide), video, iframe, .pinned")),
       );
       bar.classList.toggle("is-over-photo", over);
+      // トップの大きな写真の上にいるときは、写真に負けないよう白いつまみにする
+      const hero = document.querySelector(".hero-slides")?.getBoundingClientRect();
+      const cy = r.top + r.height / 2;
+      bar.classList.toggle("is-over-hero", !!hero && cy > hero.top && cy < hero.bottom);
     };
 
     // スクロールしている間だけ、はっきり見せる
@@ -105,7 +113,22 @@
     width: 12px;
     z-index: 30;
     cursor: pointer;
-    transition: opacity 0.25s ease;
+    /* ふだんは隠しておく。スクロールしている間だけスッと下りてきて、
+       止まると上へしゅっと抜けて消える（カーソルを乗せたとき・つかんでいる間も出る） */
+    opacity: 0;
+    transform: translateY(-18px);
+    /* 上の方（メニューバーの横あたり）は、だんだん薄くなって溶けるように */
+    -webkit-mask: linear-gradient(to bottom, transparent 0, rgb(0 0 0 / 0.35) 40px, #000 150px);
+    mask: linear-gradient(to bottom, transparent 0, rgb(0 0 0 / 0.35) 40px, #000 150px);
+    transition:
+      opacity 0.3s ease,
+      transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .panel-scroll.is-active,
+  .panel-scroll:hover,
+  .panel-scroll.is-dragging {
+    opacity: 1;
+    transform: none;
   }
   .panel-scroll[hidden] { display: none; }
   /* 写真の上では出さない（つかんでいる間は除く） */
@@ -125,6 +148,9 @@
     transition: width 0.2s ease, margin 0.2s ease, background 0.25s ease;
   }
   .panel-scroll.is-active .panel-scroll-thumb { background: #e0a3aa; }
+  @media (prefers-reduced-motion: reduce) {
+    .panel-scroll { transform: none; }
+  }
   .panel-scroll:hover .panel-scroll-thumb,
   .panel-scroll.is-dragging .panel-scroll-thumb {
     width: 7px;
@@ -134,6 +160,11 @@
   .panel-scroll.is-dragging .panel-scroll-thumb {
     background: var(--color-accent);
     cursor: grabbing;
+  }
+  /* トップの写真の上：白（つかんでいる間はロゴの赤のまま） */
+  .panel-scroll.is-over-hero:not(.is-dragging) .panel-scroll-thumb {
+    background: rgb(255 255 255 / 0.9);
+    box-shadow: 0 0 4px rgb(0 0 0 / 0.25);
   }
 </style>
 
