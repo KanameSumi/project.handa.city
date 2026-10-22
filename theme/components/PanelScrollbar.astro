@@ -1,0 +1,144 @@
+---
+// HAnDA: 白いパネルの右端に置くスクロールバー。
+// 画面の端（レンガの外）にあるブラウザのスクロールバーは隠して、代わりにこれを出す。
+// - つまみは、背景の壁のレンガと同じ色の細い線（模様なし・溝の線も出さない）。
+//   スクロール中・カーソルを乗せたときは少し濃いレンガ、つかんでいる間はロゴの赤
+// - 写真の上に重なるところでは消える
+// - つまみをドラッグして動かせる。溝をクリックするとその位置へ移る
+// - ホイール・キーボード・トラックパッドのスクロールはブラウザのまま
+// - マウスなどで操作しているときだけ（スマホ・タブレットは OS のスクロールバーのまま）
+// ブラウザのスクロールバーを隠す判定は、ちらつかないよう Layout.astro の <head> で先に行う
+// （html.has-panel-scroll）。
+---
+<div class="panel-scroll" aria-hidden="true">
+  <div class="panel-scroll-thumb"></div>
+</div>
+
+<script>
+  const root = document.documentElement;
+  const bar = document.querySelector<HTMLElement>(".panel-scroll");
+  const thumb = bar?.querySelector<HTMLElement>(".panel-scroll-thumb");
+
+  if (!root.classList.contains("has-panel-scroll") || !bar || !thumb) {
+    bar?.remove();
+  } else {
+    const header = document.querySelector<HTMLElement>(".site-header");
+    let trackTop = 0, trackH = 0, thumbH = 0, maxScroll = 0;
+    let hideTimer: number | undefined;
+
+    // 溝の位置と、つまみの大きさを計算し直す
+    const measure = () => {
+      trackTop = (header?.getBoundingClientRect().height ?? 0) + 10;
+      trackH = window.innerHeight - trackTop - 10;
+      maxScroll = root.scrollHeight - window.innerHeight;
+      bar.style.top = `${trackTop}px`;
+      bar.style.height = `${trackH}px`;
+      bar.hidden = maxScroll <= 1; // スクロールしないページでは出さない
+      thumbH = Math.max(40, (trackH * window.innerHeight) / root.scrollHeight);
+      thumb.style.height = `${thumbH}px`;
+      update();
+    };
+    // つまみをいまのスクロール位置へ
+    const update = () => {
+      const r = maxScroll > 0 ? window.scrollY / maxScroll : 0;
+      thumb.style.transform = `translateY(${r * (trackH - thumbH)}px)`;
+    };
+    // つまみが写真の上に重なっているときは隠す
+    const checkPhoto = () => {
+      const r = thumb.getBoundingClientRect();
+      const x = r.left + r.width / 2;
+      const over = [r.top + 2, r.top + r.height / 2, r.bottom - 2].some((y) =>
+        document.elementsFromPoint(x, y).some((el) => el !== bar && el !== thumb && el.matches("img, video, iframe, .hero-slides, .pinned")),
+      );
+      bar.classList.toggle("is-over-photo", over);
+    };
+
+    // スクロールしている間だけ、はっきり見せる
+    const wake = () => {
+      bar.classList.add("is-active");
+      clearTimeout(hideTimer);
+      hideTimer = window.setTimeout(() => bar.classList.remove("is-active"), 900);
+    };
+
+    window.addEventListener("scroll", () => { update(); wake(); checkPhoto(); }, { passive: true });
+    window.addEventListener("resize", measure);
+    // 写真の読み込みなどでページの長さが変わったとき
+    new ResizeObserver(measure).observe(document.body);
+
+    // つまみのドラッグ
+    let dragY = 0, dragScroll = 0;
+    thumb.addEventListener("pointerdown", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      thumb.setPointerCapture(e.pointerId);
+      dragY = e.clientY;
+      dragScroll = window.scrollY;
+      bar.classList.add("is-dragging");
+    });
+    thumb.addEventListener("pointermove", (e) => {
+      if (!bar.classList.contains("is-dragging")) return;
+      const ratio = maxScroll / Math.max(1, trackH - thumbH);
+      window.scrollTo({ top: dragScroll + (e.clientY - dragY) * ratio, behavior: "instant" as ScrollBehavior });
+    });
+    const endDrag = () => bar.classList.remove("is-dragging");
+    thumb.addEventListener("pointerup", endDrag);
+    thumb.addEventListener("pointercancel", endDrag);
+
+    // 溝のクリック：その位置がつまみの真ん中に来るように移る
+    bar.addEventListener("pointerdown", (e) => {
+      if (e.target === thumb) return;
+      const y = e.clientY - trackTop - thumbH / 2;
+      const r = Math.min(1, Math.max(0, y / Math.max(1, trackH - thumbH)));
+      window.scrollTo({ top: r * maxScroll, behavior: "smooth" });
+    });
+
+    measure();
+    checkPhoto();
+  }
+</script>
+
+<style>
+  .panel-scroll {
+    position: fixed;
+    /* 白いパネルの右端の内側（パネルより画面が狭いときは画面の右端） */
+    right: calc(max(0px, (100vw - var(--panel-width)) / 2) + 6px);
+    width: 12px;
+    z-index: 30;
+    cursor: pointer;
+    transition: opacity 0.25s ease;
+  }
+  .panel-scroll[hidden] { display: none; }
+  /* 写真の上では出さない（つかんでいる間は除く） */
+  .panel-scroll.is-over-photo:not(.is-dragging) { opacity: 0; pointer-events: none; }
+
+  /* つまみ：模様は付けず、レンガの色だけの細い線（背景の壁のレンガと同じ色）。
+     スクロール中・カーソルを乗せたときは少し濃いレンガ色、つかんでいる間はロゴの赤 */
+  .panel-scroll-thumb {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: 5px;
+    margin-left: -2.5px;
+    border-radius: 1.5px; /* 両端は少しだけ角を残す（レンガの角くらい） */
+    background: #ecc3c7;
+    cursor: grab;
+    transition: width 0.2s ease, margin 0.2s ease, background 0.25s ease;
+  }
+  .panel-scroll.is-active .panel-scroll-thumb { background: #e0a3aa; }
+  .panel-scroll:hover .panel-scroll-thumb,
+  .panel-scroll.is-dragging .panel-scroll-thumb {
+    width: 7px;
+    margin-left: -3.5px;
+    background: #d48a93;
+  }
+  .panel-scroll.is-dragging .panel-scroll-thumb {
+    background: var(--color-accent);
+    cursor: grabbing;
+  }
+</style>
+
+<style is:global>
+  /* ブラウザのスクロールバーを隠す（代わりに上のスクロールバーを出すとき） */
+  html.has-panel-scroll { scrollbar-width: none; }
+  html.has-panel-scroll::-webkit-scrollbar { display: none; }
+</style>

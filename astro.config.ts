@@ -14,6 +14,13 @@ export default defineConfig({
   // クリックしたらすぐ切り替わるようにする
   prefetch: { prefetchAll: true, defaultStrategy: "hover" },
 
+  // Gyazo の写真をビルド時にダウンロードして軽くする（theme/lib/images.ts）。
+  // Gyazo は i.gyazo.com などへ転送するので、そちらも許可しておく
+  image: {
+    domains: ["gyazo.com"],
+    remotePatterns: [{ protocol: "https", hostname: "**.gyazo.com" }],
+  },
+
   integrations: [
     cosense({ configFile: "./cosense.config.ts" }),
 

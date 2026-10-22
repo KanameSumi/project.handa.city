@@ -1,51 +1,331 @@
 ---
-import { path } from "@cosense-site-kit/theme-utils";
+// HAnDA: 見つからないページ（404）。赤レンガの壁から「レンガがひとつ抜け落ちた」絵で知らせる。
+// - 壁は背景と同じイギリス積み。真ん中の1つが抜けて、下に落ちている
+// - 落ちたレンガはつかんで動かせる。穴に戻すと、ぴたっとはまってホームへ移る
+// - ロゴ・ホームへのボタン・主なページへのリンク
+// テーマ標準の注意点（そのまま）:
+//  - data-pagefind-body を付けないので、検索の対象にならない
+//  - 404 はどんな深い URL でも出るので、リンクは path() で絶対パスにする
+//  - 見出しの目次は出さない（hideToc）
+import { loadTitleToSlug, navHref, path } from "@cosense-site-kit/theme-utils";
 import Layout from "../components/Layout.astro";
+import { loadStructure } from "../lib/config";
+import { splitLabel } from "../lib/sections";
 
-// Custom 404. Injected at the `/404` route (see index.ts), so Astro emits a
-// top-level `dist/404.html` that GitHub Pages and Cloudflare Workers Static
-// Assets serve for unknown paths. Notes:
-//  - No `data-pagefind-body`, so this page stays out of the search index (the
-//    index only covers pages that carry that attribute).
-//  - The home link uses the base-aware `path()` helper: a 404 can be served at
-//    any deep URL, so links must be base-prefixed absolute, not relative.
-//  - `hideToc` since there are no headings to outline.
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+const structure = await loadStructure();
+const titleToSlug = await loadTitleToSlug();
+// メニューと同じページへのリンク（日本語の名前で）
+const links = structure.nav.map((item) => ({ href: navHref(item, titleToSlug), label: splitLabel(item.label).ja }));
+
+// 壁：6段。偶数段は長いレンガ、奇数段は短いレンガ（イギリス積み）。
+// 3段目の真ん中のレンガだけ抜けている
+const ROWS = 6;
+const MISSING_ROW = 2;
+const rows = Array.from({ length: ROWS }, (_, r) => {
+  const long = r % 2 === 0;
+  const count = long ? 6 : 12;
+  return { long, bricks: Array.from({ length: count }, (_, i) => i), missing: r === MISSING_ROW ? Math.floor(count / 2) - 1 : -1 };
+});
 ---
-<Layout title="Page not found" hideToc>
-  <section class="notfound">
-    <p class="notfound-code">404</p>
-    <h1 class="notfound-title">Page not found</h1>
-    <p class="notfound-lead">The page you're looking for doesn't exist or may have moved.</p>
-    <a class="notfound-home" href={path("")}>← Back home</a>
+<Layout title="ページが見つかりません" hideToc>
+  <section class="nf">
+    <img class="nf-logo" src={`${base}/logo.png`} alt="HAnDA Project" />
+
+    <div class="nf-stage">
+      <div class="nf-wall" aria-hidden="true">
+        {rows.map((row) => (
+          <div class:list={["nf-row", { "is-long": row.long }]}>
+            {row.bricks.map((i) => <span class:list={["nf-brick", { "is-missing": i === row.missing }]} />)}
+          </div>
+        ))}
+      </div>
+      {/* 抜け落ちたレンガ（つかんで穴に戻せる） */}
+      <button type="button" class="nf-fallen" aria-label="ホームへ戻る（レンガを穴に戻す）" data-home={path("")}></button>
+    </div>
+    <noscript><style>.nf-fallen { visibility: visible; }</style></noscript>
+    <p class="nf-hint">落ちたレンガをつかんで、穴に戻してみてください</p>
+
+    <p class="nf-code">404</p>
+    <h1 class="nf-title">ページが見つかりませんでした</h1>
+    <p class="nf-lead">
+      <span>レンガがひとつ抜けてしまったようです。</span>
+      <span>ページが移動したか、</span><span>削除された可能性があります。</span>
+    </p>
+
+    <a class="nf-home" href={path("")}>ホームへ戻る <span aria-hidden="true">→</span></a>
+
+    {links.length > 0 && (
+      <nav class="nf-links" aria-label="主なページ">
+        {links.map((l) => <a href={l.href}>{l.label}</a>)}
+      </nav>
+    )}
   </section>
 </Layout>
 
-<style>
-  .notfound {
-    text-align: center;
-    padding: 4rem 1rem 5rem;
+<script>
+  // 落ちたレンガのドラッグ。穴の近くで離すと、穴にはまってホームへ移る。
+  // 遠くで離すと、元の場所へ戻る。キーボード・クリックだけでも（押すと）ホームへ移れる。
+  const brick = document.querySelector<HTMLButtonElement>(".nf-fallen");
+  const hole = document.querySelector<HTMLElement>(".nf-brick.is-missing");
+  const stage = document.querySelector<HTMLElement>(".nf-stage");
+  if (brick && hole && stage) {
+    const home = brick.dataset.home ?? "/";
+
+    // 落ちる前の位置＝穴。レンガを穴と同じ大きさにして、穴の真下に落ちて止まるようにする
+    const place = () => {
+      const h = hole.getBoundingClientRect();
+      const s = stage.getBoundingClientRect();
+      const holeLeft = h.left - s.left;
+      const holeTop = h.top - s.top;
+      const restLeft = holeLeft;
+      const restTop = s.height - h.height - 8;
+      brick.style.width = `${h.width}px`;
+      brick.style.left = `${restLeft}px`;
+      brick.style.top = `${restTop}px`;
+      brick.style.setProperty("--fx", `${holeLeft - restLeft}px`);
+      brick.style.setProperty("--fy", `${holeTop - restTop}px`);
+    };
+    place();
+    brick.classList.add("is-ready"); // ここで落ちる動きが始まる
+    window.addEventListener("resize", () => { if (!brick.classList.contains("is-placed")) place(); });
+    let sx = 0, sy = 0, dx = 0, dy = 0, dragging = false, moved = false, done = false;
+
+    // 穴の中心と、いまのレンガの中心の差
+    const gap = () => {
+      const h = hole.getBoundingClientRect();
+      const b = brick.getBoundingClientRect();
+      return { x: h.left + h.width / 2 - (b.left + b.width / 2), y: h.top + h.height / 2 - (b.top + b.height / 2) };
+    };
+    const near = () => {
+      const g = gap();
+      return Math.hypot(g.x, g.y) < 34;
+    };
+
+    const goHome = () => {
+      if (done) return;
+      done = true;
+      // 穴の位置・大きさにぴったり合わせて、まっすぐにはめる
+      const h = hole.getBoundingClientRect();
+      const s = stage.getBoundingClientRect();
+      brick.classList.add("is-placed");
+      brick.style.left = `${h.left - s.left}px`;
+      brick.style.top = `${h.top - s.top}px`;
+      brick.style.width = `${h.width}px`;
+      brick.style.translate = "0 0";
+      hole.classList.add("is-filled");
+      stage.classList.add("is-done");
+      setTimeout(() => { location.href = home; }, 750);
+    };
+
+    brick.addEventListener("pointerdown", (e) => {
+      if (done) return;
+      dragging = true;
+      moved = false;
+      sx = e.clientX - dx;
+      sy = e.clientY - dy;
+      brick.setPointerCapture(e.pointerId);
+      brick.classList.add("is-dragging");
+    });
+    brick.addEventListener("pointermove", (e) => {
+      if (!dragging) return;
+      dx = e.clientX - sx;
+      dy = e.clientY - sy;
+      if (Math.abs(dx) + Math.abs(dy) > 4) moved = true;
+      brick.style.translate = `${dx}px ${dy}px`;
+      hole.classList.toggle("is-near", near());
+    });
+    const drop = () => {
+      if (!dragging) return;
+      dragging = false;
+      brick.classList.remove("is-dragging");
+      hole.classList.remove("is-near");
+      if (near()) return goHome();
+      // 遠ければ元の場所へ戻る
+      dx = 0;
+      dy = 0;
+      brick.style.translate = "0 0";
+    };
+    brick.addEventListener("pointerup", drop);
+    brick.addEventListener("pointercancel", drop);
+    // ドラッグせずに押した（キーボードの Enter・スペースも）ときもホームへ
+    brick.addEventListener("click", () => { if (!moved) goHome(); });
   }
-  .notfound-code {
-    margin: 0;
-    font-family: var(--font-mono);
-    font-size: 4rem;
+</script>
+
+<style>
+  .nf {
+    text-align: center;
+    padding: 1rem 0 3rem;
+  }
+  .nf-logo {
+    display: block;
+    height: 34px;
+    width: auto;
+    margin: 0 auto 2.5rem;
+  }
+
+  /* ---- 壁 ---- */
+  .nf-stage {
+    --h: 22px; /* レンガの高さ */
+    --gap: 5px; /* 目地 */
+    position: relative;
+    width: min(100%, 420px);
+    margin: 0 auto;
+    padding-bottom: 50px; /* 落ちたレンガのぶん */
+  }
+  .nf-wall {
+    overflow: hidden;
+    /* 左右の端はぼかして、壁の一部を切り取ったように */
+    -webkit-mask: linear-gradient(to right, transparent, #000 14%, #000 86%, transparent);
+    mask: linear-gradient(to right, transparent, #000 14%, #000 86%, transparent);
+  }
+  .nf-row {
+    display: flex;
+    gap: var(--gap);
+    margin-bottom: var(--gap);
+    margin-left: calc(var(--h) * -1); /* 段ごとに少しずらして、はみ出しは切る */
+    margin-right: calc(var(--h) * -1);
+  }
+  .nf-row.is-long { margin-left: calc(var(--h) * -2); }
+  .nf-brick {
+    flex: 1;
+    height: var(--h);
+    border-radius: 3px;
+    background: #ecc3c7;
+  }
+  /* 抜けたところ：奥の暗がり */
+  .nf-brick.is-missing {
+    background: #c99299;
+    box-shadow: inset 0 4px 7px rgb(80 10 20 / 0.45);
+    outline: 2px dashed transparent;
+    outline-offset: 2px;
+    animation: nf-hole 2.4s ease-in-out infinite;
+  }
+  /* 抜けた場所を、赤い点線でゆっくり点滅させて示す */
+  @keyframes nf-hole {
+    50% { outline-color: rgb(214 21 46 / 0.55); }
+  }
+  /* 抜け落ちたレンガ：ロゴの赤。読み込むと上から落ちてきて、傾いて止まる。つかんで動かせる */
+  .nf-fallen {
+    position: absolute;
+    left: calc(50% - 20px);
+    top: calc(100% - var(--h) - 8px);
+    width: 64px;
+    height: var(--h);
+    padding: 0;
+    border: 0;
+    border-radius: 3px;
+    background: var(--color-accent);
+    box-shadow: inset 0 -3px 0 rgb(0 0 0 / 0.15), 0 6px 10px -4px rgb(0 0 0 / 0.3);
+    cursor: grab;
+    touch-action: none; /* スマホで指で動かせるように */
+    transition: translate 0.45s cubic-bezier(0.3, 1.5, 0.5, 1), box-shadow 0.2s ease;
+    visibility: hidden; /* 位置が決まるまで隠す（スクリプトが is-ready を付ける） */
+  }
+  /* 穴から真下へストンと落ち、下で軽く弾んで、少し傾いて止まる */
+  .nf-fallen.is-ready {
+    visibility: visible;
+    animation:
+      nf-fall 0.55s cubic-bezier(0.55, 0, 0.8, 0.4) 0.5s both,
+      nf-land 0.5s ease-out 1.05s forwards;
+    /* 後ろのアニメーションほど優先されるので、始まる前の状態（穴の中）を持つのは「落ちる」だけにしている */
+  }
+  .nf-fallen:hover { box-shadow: inset 0 -3px 0 rgb(0 0 0 / 0.15), 0 10px 16px -6px rgb(0 0 0 / 0.35); }
+  .nf-fallen:focus-visible { outline: 2px solid var(--color-blue, #1658a0); outline-offset: 3px; }
+  /* つかんでいる間：指にくっついて、少し持ち上がる */
+  .nf-fallen.is-dragging {
+    cursor: grabbing;
+    transition: box-shadow 0.2s ease;
+    box-shadow: inset 0 -3px 0 rgb(0 0 0 / 0.15), 0 14px 20px -6px rgb(0 0 0 / 0.35);
+  }
+  /* 穴にはまったとき：まっすぐになって、穴の大きさにぴったり */
+  .nf-fallen.is-placed {
+    animation: none;
+    transform: none;
+    box-shadow: inset 0 -3px 0 rgb(0 0 0 / 0.12);
+    transition: left 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.2), top 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.2),
+      width 0.35s ease, transform 0.35s ease, translate 0.35s ease;
+    cursor: default;
+  }
+  @keyframes nf-fall {
+    from { transform: translateY(var(--fy)) rotate(0deg); }
+    to { transform: translateY(0) rotate(0deg); }
+  }
+  @keyframes nf-land {
+    0% { transform: translateY(0) rotate(0deg); }
+    45% { transform: translateY(-6px) rotate(-5deg); }
+    100% { transform: translateY(0) rotate(-9deg); }
+  }
+  /* レンガが近づいたら、穴を光らせて「ここ」と知らせる */
+  .nf-brick.is-missing.is-near {
+    animation: none;
+    outline: 2px solid var(--color-accent);
+  }
+  .nf-brick.is-missing.is-filled { animation: none; outline: none; }
+  /* はまったら、壁全体がぽんと弾む */
+  .nf-stage.is-done .nf-wall { animation: nf-bump 0.4s ease 0.3s; }
+  @keyframes nf-bump { 50% { transform: scale(1.03); } }
+  .nf-hint {
+    margin: 0.4rem 0 0;
+    font-size: 0.78rem;
+    color: var(--color-text-muted);
+    letter-spacing: 0.04em;
+  }
+
+  /* ---- 文字 ---- */
+  .nf-code {
+    margin: 1.2rem 0 0;
+    font-family: "Oswald", var(--font-display);
+    font-size: 4.5rem;
     font-weight: 700;
     line-height: 1;
-    letter-spacing: 0.02em;
-    color: var(--color-text-muted);
+    letter-spacing: 0.08em;
+    color: var(--color-accent);
   }
-  .notfound-title {
-    margin: 1rem 0 0.5rem;
+  .nf-title {
+    margin: 0.75rem 0 0.75rem;
     font-size: 1.5rem;
-    letter-spacing: -0.01em;
+    letter-spacing: 0.06em;
   }
-  .notfound-lead {
-    margin: 0 0 1.75rem;
+  .nf-lead {
+    max-width: 24em;
+    margin: 0 auto 2rem;
     color: var(--color-text-muted);
-    font-size: 0.9375rem;
+    font-size: 0.95rem;
+    line-height: 1.9;
   }
-  .notfound-home {
-    font-weight: 500;
-    font-size: 0.9375rem;
+  /* 文の途中で折り返さないよう、区切りごとにまとめる */
+  .nf-lead span { display: inline-block; }
+  .nf-home {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.7rem 1.6rem;
+    border-radius: 4px; /* ボタンは角を少し残す（レンガの角くらい） */
+    background: var(--color-accent);
+    color: #fff;
+    font-weight: 700;
+    text-decoration: none;
+    transition: background 0.15s var(--ease), transform 0.15s var(--ease);
+  }
+  .nf-home:hover { background: var(--color-accent-hover); text-decoration: none; transform: translateY(-1px); }
+  .nf-links {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.4rem 1.4rem;
+    margin-top: 1.75rem;
+    font-size: 0.875rem;
+  }
+  .nf-links a { color: var(--color-text-soft); text-decoration: none; border-bottom: 1px solid var(--color-border); }
+  .nf-links a:hover { color: var(--color-accent); border-color: var(--color-accent); }
+
+  @media (max-width: 720px) {
+    .nf-code { font-size: 3.6rem; }
+    .nf-title { font-size: 1.25rem; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .nf-fallen.is-ready, .nf-brick.is-missing, .nf-stage.is-done .nf-wall { animation: none; }
   }
 </style>

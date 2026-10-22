@@ -34,11 +34,26 @@
 
 @media (max-width: 720px) {
   .site-logo { height: 24px; }
+  /* スマホのメニュー：文字の上だけでなく、その行の右端まで全部押せるようにする */
+  .site-nav a {
+    display: flex;
+    width: 100%;
+    box-sizing: border-box;
+  }
   .site-nav a:has(.nav-ja) {
+    display: flex;
     flex-direction: row;
     align-items: baseline;
     gap: 0.6rem;
     padding: 0.5rem 0.625rem;
+  }
+  /* いま見ているページ：灰色の背景はやめて、英語の文字に薄い青の下線（PC の青い線と同じ考え方） */
+  .site-nav a.is-active { background: transparent; }
+  .site-nav a.is-active .nav-en {
+    text-decoration: underline;
+    text-decoration-color: rgb(22 88 160 / 0.45);
+    text-decoration-thickness: 2px;
+    text-underline-offset: 6px;
   }
 }
 
@@ -55,7 +70,7 @@ h2, h3, h4, h5, h6 { letter-spacing: 0.03em; }
   margin-top: 1.25rem;
   padding: 0.55rem 1.1rem;
   border: 1.5px solid var(--color-accent);
-  border-radius: 999px;
+  border-radius: 4px; /* ボタンは角を少し残す（レンガの角くらい） */
   color: var(--color-accent);
   font-weight: 700;
   font-size: 0.9rem;
@@ -439,9 +454,45 @@ html.is-arriving .site-header-inner::after {
     box-shadow 0.3s var(--ease);
 }
 .page-content .pinned img {
+  position: relative;
+  z-index: 1;
   margin: 0;
   border-radius: 0;
 }
+/* 写真が届くまでは、写真の大きさの枠を確保しておく（読み込み中の表示を出すため） */
+.page-content .pinned:not(.is-loaded) img {
+  min-width: min(480px, 100%);
+  min-height: 220px;
+}
+
+/* 読み込み中：写真の場所に、ゆっくり光が流れる灰色の面と「読み込み中」 */
+.pinned-loading {
+  position: absolute;
+  inset: 10px 10px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  color: var(--color-text-muted);
+  background:
+    linear-gradient(100deg, transparent 30%, rgb(255 255 255 / 0.65) 50%, transparent 70%) -150% 0 / 60% 100% no-repeat,
+    var(--color-bg-soft);
+  animation: pinned-shine 1.4s ease-in-out infinite;
+  pointer-events: none;
+}
+.pinned.is-loaded .pinned-loading { display: none; }
+.pinned-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--color-border);
+  border-top-color: var(--color-accent);
+  border-radius: 50%;
+  animation: pinned-spin 0.8s linear infinite;
+}
+@keyframes pinned-shine { to { background-position: 250% 0, 0 0; } }
+@keyframes pinned-spin { to { transform: rotate(360deg); } }
 .page-content .pinned a { display: block; }
 /* カーソルを乗せると、画鋲を軸にゆらゆら揺れてまっすぐになる。離すと元の傾きへ揺れ戻る */
 .page-content .pinned:hover {
@@ -480,7 +531,7 @@ html.is-arriving .site-header-inner::after {
     0 100%, 3% 88%, 0 75%, 3% 62%, 0 50%, 3% 38%, 0 25%, 3% 12%
   );
   pointer-events: none;
-  z-index: 1;
+  z-index: 2; /* 写真（z-index: 1）より手前 */
 }
 /* 上の真ん中に1本 */
 .pinned--tape1::before {
@@ -516,7 +567,7 @@ html.is-arriving .site-header-inner::after {
     0 2px 2px rgb(0 0 0 / 0.25),
     3px 6px 5px -1px rgb(0 0 0 / 0.18);
   pointer-events: none;
-  z-index: 1;
+  z-index: 2; /* 写真（z-index: 1）より手前 */
 }
 /* 画鋲の影がつくる、紙のちょっとしたへこみ */
 .pinned--pin::after {
@@ -531,10 +582,12 @@ html.is-arriving .site-header-inner::after {
   background: rgb(0 0 0 / 0.12);
   filter: blur(1.5px);
   pointer-events: none;
+  z-index: 2;
 }
 
 @media (max-width: 720px) {
   .page-content .pinned { padding: 7px 7px 9px; margin: 1.8rem auto; }
+  .pinned-loading { inset: 7px 7px 9px; }
   .pinned--tape1::before { width: 84px; height: 22px; top: -11px; }
   .pinned--tape2::before,
   .pinned--tape2::after { width: 64px; height: 20px; }
@@ -544,5 +597,53 @@ html.is-arriving .site-header-inner::after {
 
 @media (prefers-reduced-motion: reduce) {
   .page-content .pinned { transition: none; }
+  .pinned-loading, .pinned-spinner { animation-duration: 3s; }
   .page-content .pinned:hover { animation: none; }
+}
+
+/* ==========================================================================
+   スクロールバー：レンガを積んだようなつまみ（ロゴの赤）と、背景のレンガ色の溝
+   - Chrome・Safari・Edge … ::-webkit-scrollbar でレンガ模様
+   - Firefox … 色だけ（模様は付けられない）
+   スマホは OS のスクロールバーのまま
+   ========================================================================== */
+html::-webkit-scrollbar {
+  width: 12px;
+}
+html::-webkit-scrollbar-track {
+  background: #fbf3f4; /* 背景のレンガの目地の色 */
+  border-left: 1px solid #f1dfe1;
+}
+html::-webkit-scrollbar-thumb {
+  /* 赤いレンガを縦に積んだ模様：14px ごとに白い目地 */
+  background:
+    repeating-linear-gradient(
+      to bottom,
+      var(--color-accent) 0 12px,
+      #fbf3f4 12px 14px
+    );
+  border: 2px solid #fbf3f4;
+  border-radius: 3px;
+  min-height: 42px;
+}
+html::-webkit-scrollbar-thumb:hover {
+  background:
+    repeating-linear-gradient(
+      to bottom,
+      var(--color-accent-hover) 0 12px,
+      #fbf3f4 12px 14px
+    );
+}
+html::-webkit-scrollbar-thumb:active {
+  background:
+    repeating-linear-gradient(
+      to bottom,
+      var(--color-blue, #1658a0) 0 12px,
+      #fbf3f4 12px 14px
+    );
+}
+@supports (-moz-appearance: none) {
+  html {
+    scrollbar-color: var(--color-accent) #fbf3f4;
+  }
 }

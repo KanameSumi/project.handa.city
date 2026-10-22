@@ -5,6 +5,7 @@ import { path } from "@cosense-site-kit/theme-utils";
 import { loadStructure } from "../lib/config";
 import KaTeXLink from "@cosense-site-kit/theme-utils/components/KaTeXLink.astro";
 import { resolveActiveSkin } from "../presets";
+import { ogImageFor } from "../lib/og";
 import CodeBlockEnhancer from "./CodeBlockEnhancer.astro";
 import Footer from "./Footer.astro";
 import Header from "./Header.astro";
@@ -12,6 +13,7 @@ import Lightbox from "./Lightbox.astro";
 import LinkPreview from "./LinkPreview.astro";
 import SearchOverlay from "./SearchOverlay.astro";
 import Splash from "./Splash.astro";
+import PanelScrollbar from "./PanelScrollbar.astro"; // HAnDA: 白いパネルの右端のスクロールバー
 import TableOfContents from "./TableOfContents.astro";
 import "../styles/global.css";
 import "../styles/handa.css";
@@ -42,7 +44,9 @@ const canonical = Astro.site ? new URL(Astro.url.pathname, Astro.site).href : un
 // HAnDA: public/ のファイルを指すときの頭（GitHub Pages のサブパスにも対応）
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 // SNS で共有されたときの画像：ページの画像 → 無ければロゴ
-const imageSrc = image ?? `${base}/favicon-512.png`;
+// 写真の無いページは、ビルド時に作る共有用の画像（lib/og.ts）を使う
+const ogGenerated = image ? undefined : await ogImageFor(Astro.url.pathname);
+const imageSrc = image ?? ogGenerated ?? `${base}/favicon-512.png`;
 const ogImage = imageSrc && Astro.site ? new URL(imageSrc, Astro.site).href : imageSrc;
 const jsonLd = {
   "@context": "https://schema.org",
@@ -96,7 +100,7 @@ const htmlStyle = [
 
     {/* Twitter card — only go large when the page has its own image (not the
         favicon fallback), otherwise a small summary card. */}
-    <meta name="twitter:card" content={image ? "summary_large_image" : "summary"} />
+    <meta name="twitter:card" content={image || ogGenerated ? "summary_large_image" : "summary"} />
     <meta name="twitter:title" content={title} />
     {metaDescription && <meta name="twitter:description" content={metaDescription} />}
     {ogImage && <meta name="twitter:image" content={ogImage} />}
@@ -120,6 +124,14 @@ const htmlStyle = [
         左（ホーム側）へ戻るときは左から入ってくる。ヘッダーを読み終えるまで
         最初の描画を待たせて、メニューの並び順を読めるようにしている */}
     <link rel="expect" href="#site-nav-wrap" blocking="render" />
+    {/* HAnDA: マウスで操作する環境では、ブラウザのスクロールバーを隠して
+        白いパネルの右端に自前のスクロールバーを出す（components/PanelScrollbar.astro）。
+        最初の表示より前に決めて、ページが横にずれないようにする */}
+    <script is:inline>
+      if (window.matchMedia("(hover: hover) and (pointer: fine)").matches) {
+        document.documentElement.classList.add("has-panel-scroll");
+      }
+    </script>
     <script is:inline>
       (function () {
         function home() {
@@ -181,7 +193,7 @@ const htmlStyle = [
           if (!e.viewTransition) return arrive();
           // 画面に見えている写真が読み込み終わるまで、次の中身を出さずに待つ
           // （写真が後からパッと出てちらつくのを防ぐ）。長くても WAIT_MAX ミリ秒で出す
-          var WAIT_MAX = 1000;
+          var WAIT_MAX = 700;
           html.classList.add("vt-wait");
           var done = false;
           var go = function () { if (!done) { done = true; arrive(); } };
@@ -217,5 +229,6 @@ const htmlStyle = [
     <CodeBlockEnhancer />
     <LinkPreview />
     <Lightbox />
+    <PanelScrollbar />
   </body>
 </html>
