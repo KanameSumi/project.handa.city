@@ -16,6 +16,16 @@ const srcsetOf = (src: string) => {
   return m ? [800, 1200, 1600, 2400].map((w) => `${m[1]}${w} ${w}w`).join(", ") : undefined;
 };
 ---
+{/* 写真の色を上へぼんやり伸ばす光。写真そのものは全部そのまま見せ、その上に
+    「上下反転してぼかした同じ写真」を付け足して、写真の上の端の色が上へ続くようにする */}
+<div class="hero-glow" aria-hidden="true">
+  {slides.map((src, i) => (
+    <span class:list={["hero-glow-slide", { "is-active": i === 0 }]}>
+      <img class="hero-glow-img" src={src} alt="" loading={i === 0 ? "eager" : "lazy"} decoding="async" />
+      <img class="hero-glow-img is-mirror" src={src} alt="" loading={i === 0 ? "eager" : "lazy"} decoding="async" />
+    </span>
+  ))}
+</div>
 <section class="hero-slides" data-interval={interval} aria-label="プロジェクトの写真">
   {slides.map((src, i) => (
     <img
@@ -50,6 +60,7 @@ const srcsetOf = (src: string) => {
   document.querySelectorAll<HTMLElement>(".hero-slides").forEach((root) => {
     const slides = [...root.querySelectorAll<HTMLImageElement>(".hero-slide")];
     const dots = [...root.querySelectorAll<HTMLButtonElement>(".hero-dot")];
+    const glows = [...(root.parentElement?.querySelectorAll<HTMLElement>(".hero-glow-slide") ?? [])];
     if (slides.length < 2) return;
     const interval = Number(root.dataset.interval) || 5500;
     let current = 0;
@@ -57,6 +68,7 @@ const srcsetOf = (src: string) => {
     const show = (i: number) => {
       current = (i + slides.length) % slides.length;
       slides.forEach((s, k) => s.classList.toggle("is-active", k === current));
+      glows.forEach((g, k) => g.classList.toggle("is-active", k === current));
       dots.forEach((d, k) => d.classList.toggle("is-active", k === current));
     };
     const start = () => {
@@ -92,11 +104,59 @@ const srcsetOf = (src: string) => {
 </script>
 
 <style>
+  /* 写真の縦横比と高さの上限（写真とぼかしの両方で使う）。PC は 16:9、スマホは縦長の 5:4 */
+  :global(:root) {
+    --hero-ratio: 16 / 9;
+    --hero-max-h: 80vh;
+  }
+  @media (max-width: 720px) {
+    :global(:root) { --hero-ratio: 5 / 4; }
+  }
+
+  /* 写真の色の光：写真の上 140px まで広がり、上へ向かって透明に。
+     中身は「写真と同じ位置のぼかした写真」と、その真上に「上下反転したぼかした写真」 */
+  .hero-glow {
+    --above: 140px;
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: calc(var(--above) * -1);
+    height: calc(var(--above) + 180px);
+    z-index: 0;
+    overflow: hidden; /* ぼかしがパネルの外（レンガ）にはみ出さないように */
+    pointer-events: none;
+    -webkit-mask: linear-gradient(to bottom, transparent 0%, #000 42%);
+    mask: linear-gradient(to bottom, transparent 0%, #000 42%);
+  }
+  .hero-glow-slide {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity 1.4s ease;
+  }
+  .hero-glow-slide.is-active { opacity: 1; }
+  .hero-glow-img {
+    position: absolute;
+    left: 0;
+    top: var(--above);
+    width: 100%;
+    aspect-ratio: var(--hero-ratio); /* 写真（.hero-slides）と同じ大きさ・位置 */
+    max-height: var(--hero-max-h);
+    object-fit: cover;
+    filter: blur(20px) saturate(1.2);
+    transform: scale(1.06); /* ぼかしで端が薄くならないよう、少しだけ大きく */
+  }
+  .hero-glow-img.is-mirror {
+    top: auto;
+    bottom: calc(100% - var(--above));
+    transform: scaleY(-1) scale(1.06);
+  }
   .hero-slides {
+    z-index: 1;
     position: relative;
     overflow: hidden;
-    aspect-ratio: 16 / 8;
-    max-height: 72vh;
+    aspect-ratio: var(--hero-ratio);
+    max-height: var(--hero-max-h);
     width: 100%;
     background: #1d1d22;
   }
@@ -195,7 +255,6 @@ const srcsetOf = (src: string) => {
   }
   .hero-dot.is-active { background: #fff; }
   @media (max-width: 720px) {
-    .hero-slides { aspect-ratio: 4 / 3; }
     .hero-caption { left: 1.25rem; right: 1.25rem; bottom: 2.6rem; font-size: 0.9rem; }
     .hero-dots { left: 1.25rem; right: auto; bottom: 1.1rem; }
     .hero-nav span { display: none; }

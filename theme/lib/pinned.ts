@@ -38,6 +38,8 @@ export function pinPhotos(html: string): string {
     // となりの写真とは逆向きに傾ける
     const tilt = Math.abs(TILTS[Math.floor(h / 13) % TILTS.length]) * (n % 2 ? 1 : -1);
     n++;
-    return `<span class="pinned pinned--${kind}" style="--tilt:${tilt}deg;--tape:${tape}">${m}</span>`;
+    // 写真が届くまでの「読み込み中」表示（写真が届くと、その上に写真が重なって隠れる）
+    const loading = `<span class="pinned-loading" aria-hidden="true"><span class="pinned-spinner"></span>読み込み中</span>`;
+    return `<span class="pinned pinned--${kind}" style="--tilt:${tilt}deg;--tape:${tape}">${loading}${m}</span>`;
   });
 }
