@@ -13,6 +13,7 @@ import satori from "satori";
 import { Resvg } from "@resvg/resvg-js";
 import { handaConfig } from "./config";
 import { MEMBER_TAG, postsTag, sectionInfo, worksTag } from "./sections";
+import { loadAboutMore } from "./about";
 
 export interface OgEntry {
   /** ページの URL（/works/ など） */
@@ -44,7 +45,7 @@ export function ogEntries(): Promise<OgEntry[]> {
 
     const pTag = await postsTag();
     const wTag = await worksTag();
-    const aboutTitles = new Set([handaConfig.home?.about, ...(handaConfig.home?.aboutMore ?? [])].filter(Boolean));
+    const aboutTitles = new Set([handaConfig.home?.about, ...(await loadAboutMore()).map((e) => e.data.title)].filter(Boolean));
     for (const e of await getCollection("pages")) {
       const tags = e.data.tags;
       const eyebrow = tags.some((t) => MEMBER_TAG.test(t))

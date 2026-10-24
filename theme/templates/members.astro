@@ -124,9 +124,12 @@ const latest = allYears[0];
     margin: -0.5rem 0 2rem;
   }
   .year-tab {
+    /* 活動・成果の絞り込みと同じく、角は少しだけ丸め、幅をそろえる */
+    min-width: 5rem;
     padding: 0.35rem 1.1rem;
     border: 1px solid var(--color-border);
-    border-radius: 999px;
+    border-radius: 4px;
+    text-align: center;
     background: var(--color-bg);
     color: var(--color-text-soft);
     font-family: "Oswald", var(--font-sans);

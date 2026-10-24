@@ -16,17 +16,7 @@ const pieces = [
   { left: 85.205, width: 14.795 },
 ];
 ---
-<script is:inline>
-  // 表示前に判定して、不要ならスプラッシュを最初から出さない（ちらつき防止）
-  (function () {
-    var skip = false;
-    try {
-      skip = sessionStorage.getItem("handa-splash") === "1";
-    } catch (e) {}
-    if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) skip = true;
-    if (skip) document.documentElement.classList.add("no-splash");
-  })();
-</script>
+<script is:inline src={`${base}/js/splash-check.js`}></script>
 
 <div class="splash" id="handa-splash" aria-hidden="true">
   <div class="splash-inner">
@@ -45,29 +35,7 @@ const pieces = [
   </div>
 </div>
 
-<script is:inline>
-  (function () {
-    var el = document.getElementById("handa-splash");
-    if (!el || document.documentElement.classList.contains("no-splash")) {
-      if (el) el.remove();
-      return;
-    }
-    try {
-      sessionStorage.setItem("handa-splash", "1");
-    } catch (e) {}
-    var start = Date.now();
-    var MIN = 1700; // アニメーションを見せる最短時間（ミリ秒）
-    function hide() {
-      var wait = Math.max(0, MIN - (Date.now() - start));
-      setTimeout(function () {
-        el.classList.add("is-done");
-        setTimeout(function () { el.remove(); }, 700);
-      }, wait);
-    }
-    if (document.readyState === "complete") hide();
-    else window.addEventListener("load", hide, { once: true });
-  })();
-</script>
+<script is:inline src={`${base}/js/splash.js`}></script>
 
 <style is:global>
   html.no-splash .splash { display: none; }
