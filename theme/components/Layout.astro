@@ -128,9 +128,21 @@ const htmlStyle = [
         白いパネルの右端に自前のスクロールバーを出す（components/PanelScrollbar.astro）。
         最初の表示より前に決めて、ページが横にずれないようにする */}
     <script is:inline>
-      if (window.matchMedia("(hover: hover) and (pointer: fine)").matches) {
-        document.documentElement.classList.add("has-panel-scroll");
-      }
+      (function () {
+        var root = document.documentElement;
+        var on = function () { root.classList.add("has-panel-scroll"); };
+        var mq = window.matchMedia("(hover: hover) and (pointer: fine)");
+        if (mq.matches) return on();
+        // 開いた瞬間には判定できないことがある（裏のタブで開いたときなど）ので、
+        // あとから「マウスがある」と分かった時点でも切り替える
+        if (mq.addEventListener) mq.addEventListener("change", function () { if (mq.matches) on(); });
+        var onMove = function (e) {
+          if (e.pointerType !== "mouse") return;
+          window.removeEventListener("pointermove", onMove);
+          on();
+        };
+        window.addEventListener("pointermove", onMove, { passive: true });
+      })();
     </script>
     <script is:inline>
       (function () {

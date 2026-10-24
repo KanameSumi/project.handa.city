@@ -20,9 +20,11 @@
   const bar = document.querySelector<HTMLElement>(".panel-scroll");
   const thumb = bar?.querySelector<HTMLElement>(".panel-scroll-thumb");
 
-  if (!root.classList.contains("has-panel-scroll") || !bar || !thumb) {
-    bar?.remove();
-  } else {
+  // マウスで操作している（html.has-panel-scroll が付いている）ときだけ動かす。
+  // 読み込みの時点では判定できず（裏のタブで開いたときなど）、あとから付くこともあるので、
+  // 付くまで待ってから始める
+  const start = () => {
+    if (!bar || !thumb) return;
     const header = document.querySelector<HTMLElement>(".site-header");
     let trackTop = 0, trackH = 0, thumbH = 0, maxScroll = 0;
     let hideTimer: number | undefined;
@@ -102,6 +104,16 @@
 
     measure();
     checkPhoto();
+  };
+
+  if (root.classList.contains("has-panel-scroll")) start();
+  else {
+    const mo = new MutationObserver(() => {
+      if (!root.classList.contains("has-panel-scroll")) return;
+      mo.disconnect();
+      start();
+    });
+    mo.observe(root, { attributes: true, attributeFilter: ["class"] });
   }
 </script>
 
@@ -131,6 +143,8 @@
     transform: none;
   }
   .panel-scroll[hidden] { display: none; }
+  /* マウス操作でないとき（スマホなど）は出さない */
+  :global(html:not(.has-panel-scroll)) .panel-scroll { display: none; }
   /* 写真の上では出さない（つかんでいる間は除く） */
   .panel-scroll.is-over-photo:not(.is-dragging) { opacity: 0; pointer-events: none; }
 
