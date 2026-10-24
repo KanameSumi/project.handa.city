@@ -10,6 +10,7 @@ import Layout from "../components/Layout.astro";
 import SectionHeader from "../components/SectionHeader.astro";
 import { backLinkFor, isWorksPage, loadSections } from "../lib/sections";
 import { getCollection } from "astro:content";
+import { loadAboutMore } from "../lib/about";
 import { handaConfig } from "../lib/config";
 
 interface Props {
@@ -37,13 +38,9 @@ const navSection = (await loadSections()).find((s) => s.entry?.data.slug === pag
 const back = await backLinkFor(page.tags);
 // 活動・成果のページは日付を出さない
 const isWorks = await isWorksPage(entry);
-// HAnDA: 概要ページ（handa.config.ts の home.about）の下に、home.aboutMore のページ（半田市とは・赤レンガ建物とは など）を続けて載せる
-const aboutMore =
-  page.title === handaConfig.home.about
-    ? (await Promise.all(
-        (handaConfig.home.aboutMore ?? []).map(async (t) => (await getCollection("pages")).find((e) => e.data.title === t)),
-      )).filter((e): e is CollectionEntry<"pages"> => Boolean(e))
-    : [];
+// HAnDA: 概要ページ（handa.config.ts の home.about）の下に、続けて載せるページ（半田市とは・赤レンガ建物とは など）。
+// Cosense で #about/番号 タグを付けたページと、handa.config.ts の home.aboutMore（lib/about.ts）
+const aboutMore = page.title === handaConfig.home.about ? await loadAboutMore() : [];
 const isAbout = page.title === handaConfig.home.about;
 // 概要ページの目次（ページ内の各項目へ）
 const aboutToc = isAbout ? [page.title, ...aboutMore.map((e) => e.data.title)] : [];
