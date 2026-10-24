@@ -16,25 +16,7 @@ const pieces = [
   { left: 85.205, width: 14.795 },
 ];
 ---
-<script is:inline>
-  // 表示前に判定して、不要ならスプラッシュを最初から出さない（ちらつき防止）
-  // 「もう見た」の記録は sessionStorage に残すが、プレビュー環境などでは
-  // sessionStorage が使えない・消えることがあるので、次の 2 つでも判定する
-  // - 同じサイト内のリンクから来た（メニューで移動した）とき
-  // - window.name の印（同じタブなら、ページを移動しても残る）
-  (function () {
-    var skip = false;
-    try {
-      skip = sessionStorage.getItem("handa-splash") === "1";
-    } catch (e) {}
-    try {
-      if (document.referrer && new URL(document.referrer).origin === location.origin) skip = true;
-    } catch (e) {}
-    if (/(^|\s)handa-splash(\s|$)/.test(window.name || "")) skip = true;
-    if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) skip = true;
-    if (skip) document.documentElement.classList.add("no-splash");
-  })();
-</script>
+<script is:inline src={`${base}/js/splash-check.js`}></script>
 
 <div class="splash" id="handa-splash" aria-hidden="true">
   <div class="splash-inner">
@@ -53,34 +35,7 @@ const pieces = [
   </div>
 </div>
 
-<script is:inline>
-  (function () {
-    var el = document.getElementById("handa-splash");
-    if (!el || document.documentElement.classList.contains("no-splash")) {
-      if (el) el.remove();
-      return;
-    }
-    try {
-      sessionStorage.setItem("handa-splash", "1");
-    } catch (e) {}
-    try {
-      if (!/(^|\s)handa-splash(\s|$)/.test(window.name || "")) {
-        window.name = ((window.name || "") + " handa-splash").trim();
-      }
-    } catch (e) {}
-    var start = Date.now();
-    var MIN = 1700; // アニメーションを見せる最短時間（ミリ秒）
-    function hide() {
-      var wait = Math.max(0, MIN - (Date.now() - start));
-      setTimeout(function () {
-        el.classList.add("is-done");
-        setTimeout(function () { el.remove(); }, 700);
-      }, wait);
-    }
-    if (document.readyState === "complete") hide();
-    else window.addEventListener("load", hide, { once: true });
-  })();
-</script>
+<script is:inline src={`${base}/js/splash.js`}></script>
 
 <style is:global>
   html.no-splash .splash { display: none; }
