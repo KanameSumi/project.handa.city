@@ -104,13 +104,13 @@ const srcsetOf = (src: string) => {
 </script>
 
 <style>
-  /* 写真の縦横比と高さの上限（写真とぼかしの両方で使う）。PC は 16:9、スマホは縦長の 5:4 */
+  /* 写真の縦横比と高さの上限（写真とぼかしの両方で使う）。PC は 16:9、スマホは 4:3 */
   :global(:root) {
     --hero-ratio: 16 / 9;
     --hero-max-h: 80vh;
   }
   @media (max-width: 720px) {
-    :global(:root) { --hero-ratio: 5 / 4; }
+    :global(:root) { --hero-ratio: 4 / 3; }
   }
 
   /* 写真の色の光：写真の上 140px まで広がり、上へ向かって透明に。

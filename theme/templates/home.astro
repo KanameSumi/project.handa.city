@@ -275,7 +275,8 @@ const heroLogo = existsSync(join(process.cwd(), "public", "logo-full.png")) ? `$
   .hero.has-slides {
     position: relative; /* 写真の色の光（.hero-glow）の基準 */
     max-width: none;
-    margin: calc(var(--main-top) * -1) -3.5rem 1rem;
+    /* メニューバーと写真の間を少しあける（ぴったりだと、メニューバーの丸い角のすき間から写真がのぞいて見える） */
+    margin: calc(var(--main-top) * -1 + 10px) -3.5rem 1rem;
     padding: 0;
     border-bottom: none;
   }
@@ -288,7 +289,7 @@ const heroLogo = existsSync(join(process.cwd(), "public", "logo-full.png")) ? `$
     white-space: nowrap;
   }
   @media (max-width: 720px) {
-    .hero.has-slides { margin: calc(var(--main-top) * -1) -1.25rem 0.5rem; }
+    .hero.has-slides { margin: calc(var(--main-top) * -1 + 8px) -1.25rem 0.5rem; }
   }
   .hero {
     padding: 1.5rem 0 3rem;

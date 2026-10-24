@@ -7,7 +7,7 @@
 /* ---- ヘッダー ---------------------------------------------------------- */
 .site-brand:has(.site-logo) { padding: 0.125rem 0.25rem; }
 .site-brand:has(.site-logo):hover { background: transparent; opacity: 0.85; }
-.site-logo { display: block; height: 30px; width: auto; }
+.site-logo { display: block; height: 40px; width: auto; }
 
 /* 2段メニュー（.site の nav で label を「英語|日本語」と書いたとき） */
 .site-nav a:has(.nav-ja) {
@@ -19,13 +19,13 @@
 }
 .site-nav .nav-en {
   font-family: "Oswald", var(--font-sans);
-  font-size: 0.9rem;
+  font-size: 1.05rem;
   font-weight: 500;
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 .site-nav .nav-ja {
-  font-size: 0.65rem;
+  font-size: 0.72rem;
   font-weight: 400;
   color: var(--color-text-muted);
   margin-top: 0.15rem;
@@ -33,7 +33,7 @@
 .site-nav a.is-active .nav-en { color: var(--color-accent); }
 
 @media (max-width: 720px) {
-  .site-logo { height: 24px; }
+  .site-logo { height: 30px; }
   /* スマホのメニュー：文字の上だけでなく、その行の右端まで全部押せるようにする */
   .site-nav a {
     display: flex;
@@ -132,15 +132,35 @@ html {
 }
 .site-header .site-header-inner {
   max-width: min(calc(var(--panel-width) - 2.5rem), calc(100% - 2.5rem));
+  padding-top: calc(1.15rem + 4px); /* メニューバーを大きめに（4px は上の赤い帯のぶん） */
+  padding-bottom: 1.15rem;
   border-radius: 6px;
-  border-bottom-color: transparent;
+  /* 上の赤い帯は枠線ではなく背景で描く。枠線だと角を丸めたとき、
+     ブラウザ（特に Safari）によっては下の角のふちに赤がにじんで見えるため */
+  border-top: 0;
+  border-bottom: 0;
+  background: linear-gradient(to bottom, var(--color-accent) 0 4px, var(--color-bg) 4px);
   box-shadow:
     0 1px 0 rgb(0 0 0 / 0.04),
     0 12px 28px -12px rgb(0 0 0 / 0.28);
 }
 @media (max-width: 720px) {
   .site-header { top: 8px; margin-top: 8px; }
-  .site-header .site-header-inner { max-width: calc(100% - 16px); }
+  .site-header .site-header-inner {
+    max-width: calc(100% - 16px);
+    padding-top: calc(0.95rem + 4px);
+    padding-bottom: 0.95rem;
+  }
+  .site-search-toggle, .site-nav-toggle { width: 2.5rem; height: 2.5rem; }
+  /* メニューを開いている間は、メニューバーの下の角を丸めず、下に出るメニューとひと続きの板にする */
+  .site-header .site-header-inner:has(.site-nav-wrap.is-open) {
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+  .site-header.has-js .site-nav-wrap {
+    top: calc(100% - 1px); /* 1px 重ねて、メニューバーとのつなぎ目に細いすき間が出ないように */
+    border-radius: 0 0 6px 6px;
+  }
 }
 
 /* 本文パネル：余裕のある白。中の文章は読みやすい幅に収める */
@@ -412,16 +432,20 @@ html.is-leaving .site-nav:not(:has(a.is-active)) a.is-going .nav-mark {
 .site-header-inner::after {
   content: "";
   position: absolute;
-  left: 0;
-  right: 0;
-  bottom: -1px;
+  left: 6px; /* 角の丸みの内側に収める */
+  right: 6px;
+  bottom: 0;
   height: 2px;
   background: var(--color-accent);
   transform: scaleX(0);
   transform-origin: left;
   opacity: 0;
+  visibility: hidden; /* 走っていないときは描かない */
   pointer-events: none;
 }
+html.is-leaving .site-header-inner::after,
+html.is-arriving .site-header-inner::after,
+html.vt-wait .site-header-inner::after { visibility: visible; }
 /* 押したら走り出し、8割ほどで次のページを待つ */
 html.is-leaving .site-header-inner::after {
   opacity: 1;
