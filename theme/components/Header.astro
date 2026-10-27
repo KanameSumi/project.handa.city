@@ -201,7 +201,7 @@ const isActive = (href: string): boolean => {
     // 1) メニューを押した位置から赤い波紋が広がる
     // 2) 押したら、いまのページの赤い線が押したメニューへ滑り出す
     //    （続きは次のページで view transition が引き継いで、ぴたりと止まる）
-    // 3) ヘッダーの下に読み込み中の細い線を走らせる（次のページで最後まで伸びて消える）
+    // 3) 下へスクロールするとメニューバーを上へ隠し、上へスクロールすると出す
     const navList = header.querySelector<HTMLElement>(".site-nav");
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
     const isDesktop = window.matchMedia("(min-width: 721px)");
@@ -259,6 +259,38 @@ const isActive = (href: string): boolean => {
       // its own backdrop, so leave it alone here.
       const target = e.target as Node;
       if (!header.contains(target) && !overlay?.contains(target)) setNav(false);
+    });
+
+    // ── HAnDA：スクロールの向きでメニューバーを出し入れ ─────────────
+    // 下へ読み進めている間は隠して画面を広く使い、少しでも上へ戻したら出す。
+    // ページの一番上の近く・メニューや検索を開いている間・キーボードで
+    // メニューバーを操作している間は、いつも出しておく
+    let lastY = window.scrollY;
+    const SHOW_NEAR_TOP = 120; // ここより上では隠さない（px）
+    const MIN_DELTA = 6; // これより小さい動きは無視する（指やトラックパッドの揺れ）
+    const setHidden = (hide: boolean) => header.classList.toggle("is-hidden", hide);
+    const keepShown = () =>
+      window.scrollY < SHOW_NEAR_TOP ||
+      !!navWrap?.classList.contains("is-open") ||
+      !!overlay?.classList.contains("is-open") ||
+      !!header.querySelector(":focus-visible");
+    window.addEventListener(
+      "scroll",
+      () => {
+        const y = window.scrollY;
+        const dy = y - lastY;
+        if (Math.abs(dy) < MIN_DELTA) return;
+        lastY = y;
+        setHidden(dy > 0 && !keepShown());
+      },
+      { passive: true },
+    );
+    header.addEventListener("focusin", () => setHidden(false));
+    // 「戻る」でキャッシュから復元されたときは出した状態から
+    window.addEventListener("pageshow", (e) => {
+      if (!e.persisted) return;
+      lastY = window.scrollY;
+      setHidden(false);
     });
   }
 </script>

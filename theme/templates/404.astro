@@ -2,7 +2,7 @@
 // HAnDA: 見つからないページ（404）。赤レンガの壁から「レンガがひとつ抜け落ちた」絵で知らせる。
 // - 壁は背景と同じイギリス積み。真ん中の1つが抜けて、下に落ちている
 // - 落ちたレンガはつかんで動かせる。穴に戻すと、ぴたっとはまってホームへ移る
-// - 控えめな「ホームへ戻る」のリンク
+// - 文字は「404 NOT FOUND」と短い説明だけ。ホームへは、レンガを戻すか、クリックで移れる
 // テーマ標準の注意点（そのまま）:
 //  - data-pagefind-body を付けないので、検索の対象にならない
 //  - 404 はどんな深い URL でも出るので、リンクは path() で絶対パスにする
@@ -25,7 +25,7 @@ const rows = Array.from({ length: ROWS }, (_, r) => {
   <section class="nf">
 
     <p class="nf-code">404</p>
-    <h1 class="nf-title">ページが見つかりませんでした</h1>
+    <h1 class="nf-title">NOT FOUND</h1>
     <p class="nf-lead">
       <span>レンガがひとつ抜けてしまったようです。</span>
       <span>ページが移動したか、</span><span>削除された可能性があります。</span>
@@ -43,9 +43,6 @@ const rows = Array.from({ length: ROWS }, (_, r) => {
       <button type="button" class="nf-fallen" aria-label="ホームへ戻る（レンガを穴に戻す）" data-home={path("")}></button>
     </div>
     <noscript><style>.nf-fallen { visibility: visible; }</style></noscript>
-    <p class="nf-hint">落ちたレンガをつかんで、穴に戻してみてください</p>
-
-    <a class="nf-home" href={path("")}>ホームへ戻る</a>
 
   </section>
 </Layout>
@@ -270,12 +267,6 @@ const rows = Array.from({ length: ROWS }, (_, r) => {
   /* はまったら、壁全体がぽんと弾む */
   .nf-stage.is-done .nf-wall { animation: nf-bump 0.4s ease 0.3s; }
   @keyframes nf-bump { 50% { transform: scale(1.03); } }
-  .nf-hint {
-    margin: 0.4rem 0 1.75rem;
-    font-size: 0.78rem;
-    color: var(--color-text-muted);
-    letter-spacing: 0.04em;
-  }
 
   /* ---- 文字 ---- */
   .nf-code {
@@ -288,9 +279,11 @@ const rows = Array.from({ length: ROWS }, (_, r) => {
     color: var(--color-accent);
   }
   .nf-title {
-    margin: 0.75rem 0 0.75rem;
-    font-size: 1.5rem;
-    letter-spacing: 0.06em;
+    margin: 0.5rem 0 0.75rem;
+    font-family: "Oswald", var(--font-display);
+    font-size: 1.6rem;
+    font-weight: 600;
+    letter-spacing: 0.18em;
   }
   .nf-lead {
     max-width: 24em;
@@ -301,23 +294,9 @@ const rows = Array.from({ length: ROWS }, (_, r) => {
   }
   /* 文の途中で折り返さないよう、区切りごとにまとめる */
   .nf-lead span { display: inline-block; }
-  /* ホームへ戻る：ボタンにはせず、下線付きの控えめな文字リンク */
-  .nf-home {
-    font-size: 0.9rem;
-    color: var(--color-text-muted);
-    text-decoration: underline;
-    text-decoration-color: var(--color-border);
-    text-decoration-thickness: 1px;
-    text-underline-offset: 5px;
-    transition: color 0.15s var(--ease), text-decoration-color 0.15s var(--ease);
-  }
-  .nf-home:hover {
-    color: var(--color-accent);
-    text-decoration-color: var(--color-accent);
-  }
   @media (max-width: 720px) {
     .nf-code { font-size: 3.6rem; }
-    .nf-title { font-size: 1.25rem; }
+    .nf-title { font-size: 1.3rem; }
   }
   @media (prefers-reduced-motion: reduce) {
     .nf-fallen.is-ready, .nf-brick.is-missing, .nf-stage.is-done .nf-wall { animation: none; }

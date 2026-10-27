@@ -1,6 +1,6 @@
 ---
 import { getCollection } from "astro:content";
-import { hasTag } from "@cosense-site-kit/theme-utils";
+import { hasTag, path } from "@cosense-site-kit/theme-utils";
 import { loadStructure } from "../lib/config";
 import type { GetStaticPaths, PaginateFunction } from "astro";
 import Card from "../components/Card.astro";
@@ -8,6 +8,8 @@ import Layout from "../components/Layout.astro";
 import Pagination from "../components/Pagination.astro";
 import SectionHeader from "../components/SectionHeader.astro";
 import BackLink from "../components/BackLink.astro";
+import FiscalJump from "../components/FiscalJump.astro";
+import { entryFiscalYear, fiscalId, fiscalLabel, groupByFiscalYear } from "../lib/fiscal";
 import { homeBack } from "../lib/sections";
 import { sectionInfo } from "../lib/sections";
 import { POSTS_PER_PAGE } from "../constants";
@@ -35,9 +37,22 @@ export const getStaticPaths: GetStaticPaths = async ({ paginate }) => {
     ];
   }
 
+  // HAnDA: 年度ごとの区切り。各年度の最初の記事が何ページ目にあるかを調べて、
+  // 「年度へ移動」のボタンからそのページのその年度の見出しへ飛べるようにする
+  const fyOf = (e: (typeof posts)[number]) => entryFiscalYear(e.data);
+  let index = 0;
+  const yearPages = groupByFiscalYear(posts, (e) => entryFiscalYear(e.data)).map((g) => {
+    const page = Math.floor(index / POSTS_PER_PAGE) + 1;
+    index += g.items.length;
+    return { year: g.year, page };
+  });
+
   return (paginate as PaginateFunction)(posts, { pageSize: POSTS_PER_PAGE }).map((route) => ({
     params: route.params,
     props: {
+      // ひとつ前のページの最後の記事の年度（このページの先頭が年度の途中かどうかを見るため）
+      prevYear: route.props.page.start > 0 ? fyOf(posts[route.props.page.start - 1]) : undefined,
+      yearPages,
       entries: route.props.page.data,
       pageInfo: {
         current: route.props.page.currentPage,
@@ -51,12 +66,30 @@ export const getStaticPaths: GetStaticPaths = async ({ paginate }) => {
 };
 
 type Entry = Awaited<ReturnType<typeof getCollection<"pages">>>[number];
-const { entries, pageInfo, configured } = Astro.props as {
+const { entries, pageInfo, configured, prevYear, yearPages = [] } = Astro.props as {
+  prevYear?: number;
+  yearPages?: { year: number; page: number }[];
   entries: Entry[];
   pageInfo: { current: number; last: number; prevUrl?: string; nextUrl?: string } | null;
   configured: boolean;
 };
 const info = await sectionInfo("blog");
+
+// HAnDA: 年度が変わるところに区切りの見出しを入れる。ページの先頭が年度の途中なら、
+// その年度名も（リンク先にはしない見出しとして）出して、いま何年度の記事かわかるようにする
+const current = pageInfo?.current ?? 1;
+const jumpYears = yearPages.map(({ year, page }) => ({
+  year,
+  href: `${page === current ? "" : path(page === 1 ? "posts" : `posts/${page}`)}#${fiscalId(year)}`,
+}));
+let last = prevYear;
+const rows = entries.map((entry, i) => {
+  const year = entryFiscalYear(entry.data) ?? last;
+  const starts = year !== undefined && year !== last; // その年度の最初の記事
+  const divider = year !== undefined && (starts || i === 0) ? { year, anchor: starts } : undefined;
+  last = year;
+  return { entry, divider };
+});
 ---
 <Layout title={info.ja} description={info.intro} hideToc>
   <BackLink back={homeBack()} />
@@ -64,9 +97,17 @@ const info = await sectionInfo("blog");
   {configured ? (
     <section>
       {entries.length === 0 && <p class="summary">まだ記事がありません。</p>}
+      <FiscalJump years={jumpYears} />
       <ul class="card-grid">
-        {entries.map((entry) => (
-          <Card entry={entry} />
+        {rows.map(({ entry, divider }) => (
+          <Fragment>
+            {divider && (
+              <li class="fy-divider">
+                <h2 class="fy-heading" id={divider.anchor ? fiscalId(divider.year) : undefined}>{fiscalLabel(divider.year)}</h2>
+              </li>
+            )}
+            <Card entry={entry} />
+          </Fragment>
         ))}
       </ul>
       {pageInfo && <Pagination {...pageInfo} />}
