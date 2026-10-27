@@ -6,6 +6,8 @@
 //   - 本文 1 行目 = 一言説明 → カードの説明文になる
 //   - 写真を貼ると最初の 1 枚がカード画像になる
 //   - タグ: #publish #works  （日付は表示しない。並び順に使いたいときは #published/2026-08-01）
+//   - 年度（4月〜翌3月）ごとに見出しを付けて区切る。年度は #年度/2026 のタグで指定する
+//     （無ければ上の日付、それも無ければページを作った日で決まる）
 //   - 種類で分けたいときは #works/3D などを足すと絞り込みボタンが出る
 import { getCollection } from "astro:content";
 import { hasTag } from "@cosense-site-kit/theme-utils";
@@ -13,6 +15,7 @@ import Card from "../components/Card.astro";
 import Layout from "../components/Layout.astro";
 import SectionHeader from "../components/SectionHeader.astro";
 import BackLink from "../components/BackLink.astro";
+import { entryFiscalYear, fiscalId, fiscalLabel, groupByFiscalYear } from "../lib/fiscal";
 import { homeBack } from "../lib/sections";
 import { byNewest, sectionInfo, worksTag } from "../lib/sections";
 
@@ -26,44 +29,117 @@ const categoriesOf = (tags: string[]) =>
   tags.filter((t) => t.toLowerCase().startsWith(prefix)).map((t) => t.slice(prefix.length));
 const categories = [...new Set(works.flatMap((e) => categoriesOf(e.data.tags)))];
 
+// 年度ごとのまとまり（新しい年度から。同じ年度の中は新しい順）
+const yearOf = (e: (typeof works)[number]) => entryFiscalYear(e.data) ?? 0;
+works.sort((a, b) => yearOf(b) - yearOf(a) || byNewest(a, b));
+const groups = groupByFiscalYear(works, (e) => entryFiscalYear(e.data));
+
 ---
 <Layout title={info.ja} description={info.intro} hideToc>
   <article class="works" data-pagefind-body>
     <BackLink back={homeBack()} />
     <SectionHeader en={info.en} title={info.ja} lead={info.intro} />
 
-    {categories.length > 0 && (
-      <div class="works-filters" role="group" aria-label="絞り込み" data-pagefind-ignore>
-        <button type="button" class="works-filter is-active" data-filter="">すべて</button>
-        {categories.map((c) => <button type="button" class="works-filter" data-filter={c}>{c}</button>)}
+    {(categories.length > 0 || groups.length > 0) && (
+      <div class="works-filters" data-pagefind-ignore>
+        {categories.length > 0 && (
+          <div class="works-cats" role="group" aria-label="種類で絞り込み">
+            <button type="button" class="works-filter is-active" data-filter="">すべて</button>
+            {categories.map((c) => <button type="button" class="works-filter" data-filter={c}>{c}</button>)}
+          </div>
+        )}
+        {/* 年度で絞り込み（年度が 1 つだけでも出す） */}
+        {groups.length > 0 && (
+          <label class="works-year-select">
+            <select id="works-year" aria-label="年度で絞り込み">
+              <option value="">すべての年度</option>
+              {groups.map((g) => <option value={String(g.year)}>{fiscalLabel(g.year)}</option>)}
+            </select>
+          </label>
+        )}
       </div>
     )}
 
     {works.length === 0 && <p class="works-empty">まだ活動が登録されていません。</p>}
+    {works.length > 0 && <p class="works-empty" id="works-none" hidden>この条件に合う活動はありません。</p>}
 
-    <ul class="card-grid works-grid">
-      {works.map((entry) => <Card entry={entry} cats={categoriesOf(entry.data.tags)} showDate={false} />)}
-    </ul>
+    {groups.map((g) => (
+      <section class="fy-group" data-fy={g.year}>
+        <h2 class="fy-heading" id={fiscalId(g.year)}>{fiscalLabel(g.year)}</h2>
+        <ul class="card-grid works-grid">
+          {g.items.map((entry) => <Card entry={entry} cats={categoriesOf(entry.data.tags)} showDate={false} />)}
+        </ul>
+      </section>
+    ))}
   </article>
 </Layout>
 
 <script>
+  // 種類（ボタン）と年度（プルダウン）の両方で絞り込む
   const buttons = document.querySelectorAll<HTMLButtonElement>(".works-filter");
+  const yearSelect = document.querySelector<HTMLSelectElement>("#works-year");
+  let cat = "";
+  const apply = () => {
+    const year = yearSelect?.value ?? "";
+    document.querySelectorAll<HTMLElement>(".fy-group").forEach((group) => {
+      const yearOk = !year || group.dataset.fy === year;
+      let any = false;
+      group.querySelectorAll<HTMLElement>("li[data-cats]").forEach((el) => {
+        const show = yearOk && (!cat || (el.dataset.cats ?? "").includes(`|${cat}|`));
+        el.style.display = show ? "" : "none";
+        if (show) any = true;
+      });
+      // 中身が空になった年度は見出しごと隠す
+      group.hidden = !any;
+    });
+    const none = document.querySelector<HTMLElement>("#works-none");
+    if (none) none.hidden = [...document.querySelectorAll<HTMLElement>(".fy-group")].some((g) => !g.hidden);
+  };
   buttons.forEach((btn) => {
     btn.addEventListener("click", () => {
-      const f = btn.dataset.filter ?? "";
+      cat = btn.dataset.filter ?? "";
       buttons.forEach((b) => b.classList.toggle("is-active", b === btn));
-      document.querySelectorAll<HTMLElement>(".works-grid li[data-cats]").forEach((el) => {
-        const show = !f || (el.dataset.cats ?? "").includes(`|${f}|`);
-        el.style.display = show ? "" : "none";
-      });
-
+      apply();
     });
   });
+  yearSelect?.addEventListener("change", apply);
+  // 「戻る」で戻ったとき、ブラウザが覚えていた選択を反映する
+  window.addEventListener("pageshow", apply);
 </script>
 
 <style>
-  .works-filters { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: -1rem 0 2rem; }
+  .works-filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem 1rem;
+    margin: -1rem 0 2rem;
+  }
+  .works-cats { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+  /* 年度のプルダウン：ボタンと同じ枠線・角で、右端に寄せる */
+  .works-year-select { margin-left: auto; }
+  .works-year-select select {
+    appearance: none;
+    min-width: 9rem;
+    padding: 0.3rem 2rem 0.3rem 0.8rem;
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    background:
+      linear-gradient(45deg, transparent 50%, var(--color-text-muted) 50%) right 0.95rem center / 5px 5px no-repeat,
+      linear-gradient(-45deg, transparent 50%, var(--color-text-muted) 50%) right 0.65rem center / 5px 5px no-repeat,
+      var(--color-bg);
+    color: var(--color-text-soft);
+    font: inherit;
+    font-size: 0.85rem;
+    cursor: pointer;
+  }
+  .works-year-select select:hover { border-color: var(--color-text-muted); }
+  .works-year-select select:focus-visible { outline: 2px solid var(--color-blue, #1658a0); outline-offset: 2px; }
+  /* スマホでは、ボタンの下の行の左端に置く */
+  @media (max-width: 720px) {
+    .works-year-select { margin-left: 0; }
+  }
   .works-filter {
     /* 角は少しだけ丸め、幅は3文字（「すべて」）ぶんにそろえる。長い名前はそのぶん広がる */
     min-width: 4.75rem;
@@ -78,14 +154,5 @@ const categories = [...new Set(works.flatMap((e) => categoriesOf(e.data.tags)))]
     cursor: pointer;
   }
   .works-filter.is-active { background: var(--color-accent); border-color: var(--color-accent); color: #fff; }
-  .works-year { margin-bottom: 2.5rem; }
-  .works-year h2 {
-    font-family: "Oswald", var(--font-display);
-    font-size: 1.15rem;
-    letter-spacing: 0.08em;
-    padding-bottom: 0.5rem;
-    border-bottom: 1px solid var(--color-border);
-    margin-bottom: 1.25rem;
-  }
   .works-empty { color: var(--color-text-muted); }
 </style>

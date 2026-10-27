@@ -33,8 +33,8 @@
     const measure = () => {
       // メニューバー（浮いた板）の上端の高さから始める。スクロールバーはパネルの右端にあり、
       // 板より外側なので重ならない。上の方は CSS でだんだん薄くしている
-      const headerBox = header?.querySelector(".site-header-inner") ?? header;
-      trackTop = Math.max(0, headerBox?.getBoundingClientRect().top ?? 0);
+      // （メニューバーはスクロールで隠れることがあるので、位置ではなく CSS の top の値を使う）
+      trackTop = header ? Math.max(0, parseFloat(getComputedStyle(header).top) || 0) : 0;
       trackH = window.innerHeight - trackTop - 10;
       maxScroll = root.scrollHeight - window.innerHeight;
       bar.style.top = `${trackTop}px`;

@@ -1,6 +1,5 @@
 ---
 import type { CollectionEntry } from "astro:content";
-import { path } from "@cosense-site-kit/theme-utils";
 import PageContent from "../components/Content.astro"; // HAnDA: 外部 URL をリンクカードにする版
 import BackLink from "../components/BackLink.astro";
 import Layout from "../components/Layout.astro";
@@ -41,14 +40,34 @@ const onlyWorkLinks = (nodes: Inline[] | undefined): boolean => {
     meaningful.every((n) => n.type === "pageLink" && workTitles.has((n.title ?? "").trim().toLowerCase()))
   );
 };
+// メンバーページ：学科・学年の行（「情報科学科 ３年」など）は、Cosense で写真の上に書いても
+// 下に書いても、いつも名前のすぐ下に出す（本文からは外す）。読み取り方は lib/members.ts と同じ
+const DEPT_LINE = /^(.*?)\s*(M|D|修士|博士)?\s*(\d)\s*年/i;
+const inlineText = (nodes: Inline[] | undefined): string =>
+  (nodes ?? []).map((n) => (n.type === "text" ? n.value ?? "" : n.type === "pageLink" ? n.title ?? "" : inlineText(n.children))).join("");
+let deptLine: string | undefined;
+let bodyBlocks = page.blocks;
+if (isMember) {
+  // 先頭のほう（写真や空行をはさんでも 4 ブロック目まで）にある、短い 1 行だけを対象にする
+  const i = page.blocks.slice(0, 4).findIndex((b) => {
+    if (b.type !== "paragraph" || !("children" in b)) return false;
+    const t = inlineText(b.children as Inline[]).normalize("NFKC").trim();
+    return t.length > 0 && t.length <= 40 && DEPT_LINE.test(t);
+  });
+  if (i >= 0) {
+    deptLine = inlineText((page.blocks[i] as { children?: Inline[] }).children).trim();
+    bodyBlocks = page.blocks.filter((_, j) => j !== i);
+  }
+}
+
 const blocks = workTitles.size
-  ? page.blocks.filter((b) => !(("children" in b) && (b.type === "paragraph" || b.type === "list") && onlyWorkLinks(b.children as Inline[])))
-  : page.blocks;
+  ? bodyBlocks.filter((b) => !(("children" in b) && (b.type === "paragraph" || b.type === "list") && onlyWorkLinks(b.children as Inline[])))
+  : bodyBlocks;
 ---
 <Layout title={page.title} description={page.summary} image={page.image} ogType="article">
   <article class="profile" data-pagefind-body>
     <BackLink back={back} />
-    <SectionHeader en={navSection?.en ?? back?.en} title={page.title} />
+    <SectionHeader en={navSection?.en ?? back?.en} title={page.title} lead={deptLine} />
 
     <PageContent blocks={blocks} />
 
@@ -58,9 +77,8 @@ const blocks = workTitles.size
     )}
 
     <footer class="profile-source" data-pagefind-ignore>
+      {/* 一覧へ戻るリンクは左上（BackLink）の1つだけにする（ブログ・活動のページと同じ） */}
       <a href={page.sourceUrl} target="_blank" rel="noopener noreferrer">Source on Cosense ↗</a>
-      {" · "}
-      <a href={back?.href ?? path("")}>← {back?.label ?? "トップへ"}</a>
     </footer>
   </article>
 </Layout>

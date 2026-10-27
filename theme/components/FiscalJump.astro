@@ -1,0 +1,20 @@
+---
+// HAnDA: 一覧の上に出す「年度へ移動」のボタン（ブログ・活動の一覧）。
+// 押すとその年度の見出しまでスクロールする（別のページにある年度は、そのページを開いて移る）。
+// 年度が 1 つしかないときは出さない。見た目は handa.css の .fy-jump
+import { fiscalLabel } from "../lib/fiscal";
+
+interface Props {
+  years: { year: number; href: string }[];
+}
+const { years } = Astro.props;
+---
+{years.length > 1 && (
+  <nav class="fy-jump" aria-label="年度へ移動" data-pagefind-ignore>
+    {years.map(({ year, href }) => (
+      <a class="fy-jump-link" href={href} data-fy={year}>
+        {fiscalLabel(year)}<span aria-hidden="true">↓</span>
+      </a>
+    ))}
+  </nav>
+)}
