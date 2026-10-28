@@ -29,7 +29,14 @@ const isActive = (href: string): boolean => {
   return currentPath === href || currentPath.startsWith(`${href}/`);
 };
 ---
-<header class="site-header">
+{/* HAnDA: has-js は最初から付けておく。スクリプトで後から付けると、ページを移るたびに
+    検索ボタンが一瞬消えてから出て、メニューが左右にがたつくため（JS が無いときは下の noscript で元に戻す） */}
+<header class="site-header has-js">
+  <noscript><style>
+    .site-header.has-js .site-search-toggle, .site-header.has-js .site-nav-toggle { display: none !important; }
+    .site-header.has-js .site-nav-wrap { position: static !important; display: block !important; visibility: visible !important; opacity: 1 !important; transform: none !important; clip-path: none !important; pointer-events: auto !important; box-shadow: none !important; }
+    .site-header.has-js .site-nav li { opacity: 1 !important; transform: none !important; }
+  </style></noscript>
   <div class="site-header-inner">
     <a class="site-brand" href={import.meta.env.BASE_URL}>
       {hasLogo ? <img class="site-logo" src={logoSrc} alt={siteTitle} /> : siteTitle}
@@ -162,7 +169,7 @@ const isActive = (href: string): boolean => {
             bundlePath,
             showImages: false,
             showSubResults: true,
-            translations: { placeholder: "Search" },
+            translations: { placeholder: "サイト内を検索" },
           });
           focusInput();
         } else if (note) {
@@ -265,9 +272,13 @@ const isActive = (href: string): boolean => {
     // 下へ読み進めている間は隠して画面を広く使い、少しでも上へ戻したら出す。
     // ページの一番上の近く・メニューや検索を開いている間・キーボードで
     // メニューバーを操作している間は、いつも出しておく
+    // 同じ向きにある程度進んでから切り替える（指の小さな揺れや、端での跳ね返りで出たり消えたりしないように）
     let lastY = window.scrollY;
+    let travel = 0; // 同じ向きに進んだ距離（下向きが正）
     const SHOW_NEAR_TOP = 120; // ここより上では隠さない（px）
-    const MIN_DELTA = 6; // これより小さい動きは無視する（指やトラックパッドの揺れ）
+    const HIDE_AFTER = 28; // 下へこれだけ進んだら隠す
+    // 上へこれだけ戻したら出す（スマホは指で少し戻しただけで素早く出す）
+    const SHOW_AFTER = window.matchMedia("(max-width: 720px)").matches ? 6 : 14;
     const setHidden = (hide: boolean) => header.classList.toggle("is-hidden", hide);
     const keepShown = () =>
       window.scrollY < SHOW_NEAR_TOP ||
@@ -278,10 +289,18 @@ const isActive = (href: string): boolean => {
       "scroll",
       () => {
         const y = window.scrollY;
+        const max = document.documentElement.scrollHeight - window.innerHeight;
         const dy = y - lastY;
-        if (Math.abs(dy) < MIN_DELTA) return;
         lastY = y;
-        setHidden(dy > 0 && !keepShown());
+        // ページの上端・下端を越えた跳ね返り（スマホ・Mac）の分は数えない
+        if (y < 0 || y > max) return;
+        if (keepShown()) {
+          travel = 0;
+          return setHidden(false);
+        }
+        travel = Math.sign(dy) === Math.sign(travel) ? travel + dy : dy;
+        if (travel > HIDE_AFTER) setHidden(true);
+        else if (travel < -SHOW_AFTER) setHidden(false);
       },
       { passive: true },
     );
@@ -290,6 +309,7 @@ const isActive = (href: string): boolean => {
     window.addEventListener("pageshow", (e) => {
       if (!e.persisted) return;
       lastY = window.scrollY;
+      travel = 0;
       setHidden(false);
     });
   }

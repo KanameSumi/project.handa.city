@@ -13,6 +13,7 @@ import Lightbox from "./Lightbox.astro";
 import LinkPreview from "./LinkPreview.astro";
 import SearchOverlay from "./SearchOverlay.astro";
 import Splash from "./Splash.astro";
+import BackToTop from "./BackToTop.astro"; // HAnDA: 右下に浮かぶ「ページの先頭へ」
 import PanelScrollbar from "./PanelScrollbar.astro"; // HAnDA: 白いパネルの右端のスクロールバー
 import TableOfContents from "./TableOfContents.astro";
 import "../styles/global.css";
@@ -27,9 +28,11 @@ interface Props {
   image?: string;
   /** OpenGraph type. "article" for content pages, "website" for indexes. */
   ogType?: "website" | "article";
+  /** HAnDA: Cosense の元ページの URL。あればフッターに「Source on Cosense」のリンクを出す */
+  sourceUrl?: string;
 }
 
-const { title, description, hideToc = false, image, ogType = "website" } = Astro.props;
+const { title, description, hideToc = false, image, ogType = "website", sourceUrl } = Astro.props;
 
 const siteTitle =
   options.siteTitle ?? site?.title ?? (Astro.site ? new URL("/", Astro.site).hostname : title);
@@ -137,11 +140,12 @@ const htmlStyle = [
     <Header currentPath={Astro.url.pathname} />
     {options.search && <SearchOverlay />}
     <main class="site-main"><slot /></main>
-    <Footer />
+    <Footer sourceUrl={sourceUrl} />
     {!hideToc && <TableOfContents />}
     <CodeBlockEnhancer />
     <LinkPreview />
     <Lightbox />
+    <BackToTop />
     <PanelScrollbar />
   </body>
 </html>

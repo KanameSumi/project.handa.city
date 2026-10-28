@@ -5,6 +5,22 @@ import { getCollection } from "astro:content";
 import { MEMBER_TAG } from "./sections";
 import { handaConfig } from "./config";
 
+// ---- 表示する名前 ------------------------------------------------------------
+// 同姓同名の人がいるときは、Cosense のページ名を「半田太郎（建築学科）」のように
+// 区別して付ける。サイトでは名前の後ろの（ ）の部分を表示しない
+export const displayName = (title: string) => title.replace(/\s*[（(][^（）()]*[）)]\s*$/, "").trim() || title;
+
+/** 名前の後ろに（ ）が付いているメンバーページの { ページ名 → 表示する名前 }（本文中のリンクの文字を直すため） */
+export async function memberDisplayNames(): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  for (const e of await getCollection("pages")) {
+    if (!e.data.tags.some((t) => MEMBER_TAG.test(t))) continue;
+    const name = displayName(e.data.title);
+    if (name !== e.data.title) out.set(e.data.title, name);
+  }
+  return out;
+}
+
 // ---- 並び順の材料 ------------------------------------------------------------
 export const memberCfg = handaConfig.members ?? {};
 export const DEPT_ORDER = memberCfg.departments ?? [];

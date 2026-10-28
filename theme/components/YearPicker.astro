@@ -1,0 +1,151 @@
+---
+// HAnDA: 年度などを選ぶプルダウン（ブラウザ標準のものではなく、サイトに合わせた自作のリスト）。
+// 押すと下に白い板のリストが開き、選んでいる項目に赤い印。キーボード（↑↓・Enter・Esc）でも操作できる。
+// 選ぶと要素の data-value が変わり、"yearpick" イベント（detail に値）が飛ぶ。
+// 外から選び直すときは、要素に "yearpick:set" イベント（detail に値）を送る。
+interface Props {
+  id: string;
+  /** 読み上げ用の名前（例：年度で絞り込み） */
+  label: string;
+  options: { value: string; label: string }[];
+  /** 最初に選んでおく値 */
+  value?: string;
+  class?: string;
+}
+const { id, label, options, value = options[0]?.value ?? "", class: className } = Astro.props;
+const current = options.find((o) => o.value === value) ?? options[0];
+---
+<div class:list={["year-pick", className]} id={id} data-value={current?.value ?? ""}>
+  <button type="button" class="year-pick-button" aria-haspopup="listbox" aria-expanded="false" aria-label={label}>
+    <span class="year-pick-label">{current?.label}</span>
+    <span class="year-pick-arrow" aria-hidden="true"></span>
+  </button>
+  <ul class="year-pick-list" role="listbox" aria-label={label} hidden>
+    {options.map((o) => (
+      <li role="option" data-value={o.value} aria-selected={o.value === current?.value ? "true" : "false"} tabindex="-1">{o.label}</li>
+    ))}
+  </ul>
+</div>
+
+<script>
+  document.querySelectorAll<HTMLElement>(".year-pick").forEach((picker) => {
+    const button = picker.querySelector<HTMLButtonElement>(".year-pick-button")!;
+    const label = picker.querySelector<HTMLElement>(".year-pick-label")!;
+    const list = picker.querySelector<HTMLElement>(".year-pick-list")!;
+    const options = [...list.querySelectorAll<HTMLElement>("[role=option]")];
+    const setOpen = (open: boolean, focus = true) => {
+      list.hidden = !open;
+      picker.classList.toggle("is-open", open);
+      button.setAttribute("aria-expanded", String(open));
+      if (open) (options.find((o) => o.getAttribute("aria-selected") === "true") ?? options[0]).focus();
+      else if (focus) button.focus();
+    };
+    const select = (o: HTMLElement, notify: boolean) => {
+      options.forEach((x) => x.setAttribute("aria-selected", String(x === o)));
+      picker.dataset.value = o.dataset.value ?? "";
+      label.textContent = o.textContent;
+      if (notify) picker.dispatchEvent(new CustomEvent("yearpick", { detail: picker.dataset.value, bubbles: true }));
+    };
+    const choose = (o: HTMLElement) => {
+      select(o, true);
+      setOpen(false);
+    };
+    button.addEventListener("click", () => setOpen(list.hidden));
+    options.forEach((o) => o.addEventListener("click", () => choose(o)));
+    list.addEventListener("keydown", (e) => {
+      const i = options.indexOf(document.activeElement as HTMLElement);
+      if (e.key === "ArrowDown") { e.preventDefault(); options[Math.min(i + 1, options.length - 1)].focus(); }
+      else if (e.key === "ArrowUp") { e.preventDefault(); options[Math.max(i - 1, 0)].focus(); }
+      else if (e.key === "Enter" || e.key === " ") { e.preventDefault(); if (i >= 0) choose(options[i]); }
+      else if (e.key === "Escape" || e.key === "Tab") setOpen(false, e.key === "Escape");
+    });
+    // 外を押したら閉じる
+    document.addEventListener("click", (e) => { if (!picker.contains(e.target as Node)) setOpen(false, false); });
+    // 外から選び直す（URL の #y2025 など）。このときは "yearpick" イベントは飛ばさない
+    picker.addEventListener("yearpick:set", (e) => {
+      const o = options.find((x) => x.dataset.value === (e as CustomEvent<string>).detail);
+      if (o) select(o, false);
+    });
+  });
+</script>
+
+<style>
+  /* 年度のプルダウン：ボタンと同じ枠線・角。押すと下に白い板のリストが開く */
+  .year-pick { position: relative; display: inline-block; }
+  .year-pick-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    min-width: 9rem;
+    padding: 0.3rem 0.8rem;
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    background: var(--color-bg);
+    color: var(--color-text-soft);
+    font: inherit;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: border-color 0.15s var(--ease);
+  }
+  .year-pick-button:hover,
+  .year-pick.is-open .year-pick-button { border-color: var(--color-text-muted); }
+  .year-pick-button:focus-visible { outline: 2px solid var(--color-blue, #1658a0); outline-offset: 2px; }
+  /* 下向きの矢印（開いている間は上向き） */
+  .year-pick-arrow {
+    width: 6px;
+    height: 6px;
+    border-right: 1.5px solid currentColor;
+    border-bottom: 1.5px solid currentColor;
+    transform: translateY(-2px) rotate(45deg);
+    transition: transform 0.2s var(--ease);
+  }
+  .year-pick.is-open .year-pick-arrow { transform: translateY(1px) rotate(-135deg); }
+  .year-pick-list {
+    position: absolute;
+    z-index: 10;
+    top: calc(100% + 4px);
+    right: 0;
+    min-width: 100%;
+    margin: 0;
+    padding: 4px;
+    list-style: none;
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    box-shadow: 0 12px 28px -12px rgb(0 0 0 / 0.28);
+    animation: year-pick-in 0.18s var(--ease);
+  }
+  .year-pick-list[hidden] { display: none; }
+  @keyframes year-pick-in { from { opacity: 0; transform: translateY(-4px); } }
+  .year-pick-list [role="option"] {
+    position: relative;
+    padding: 0.4rem 0.8rem 0.4rem 1.4rem;
+    border-radius: 3px;
+    font-size: 0.85rem;
+    color: var(--color-text-soft);
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .year-pick-list [role="option"]:hover,
+  .year-pick-list [role="option"]:focus { background: var(--color-bg-hover, #f4f4f5); color: var(--color-text); outline: none; }
+  /* 選んでいる年度には赤い印 */
+  .year-pick-list [aria-selected="true"] { color: var(--color-accent); font-weight: 600; }
+  .year-pick-list [aria-selected="true"]::before {
+    content: "";
+    position: absolute;
+    left: 0.6rem;
+    top: 50%;
+    width: 5px;
+    height: 5px;
+    margin-top: -2.5px;
+    border-radius: 1px;
+    background: var(--color-accent);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .year-pick-list { animation: none; }
+  }
+  @media (max-width: 720px) {
+    .year-pick-list { left: 0; right: auto; }
+  }
+</style>

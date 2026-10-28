@@ -6,6 +6,7 @@ import Layout from "../components/Layout.astro";
 import SectionHeader from "../components/SectionHeader.astro";
 import WorkChips from "../components/WorkChips.astro";
 import { MEMBER_TAG, backLinkFor, loadSections, worksForMember } from "../lib/sections";
+import { displayName } from "../lib/members";
 
 // Profile template: a slim hero band over the body, no tag chips, and a
 // "more pages" footer pointing back into the rest of the site. Suitable for
@@ -29,6 +30,8 @@ const back = await backLinkFor(page.tags);
 // メンバーページなら、関わった活動・成果をタグで出す
 const isMember = page.tags.some((t) => MEMBER_TAG.test(t));
 const memberWorks = isMember ? await worksForMember(entry) : [];
+// 見出しに出す名前（メンバーは名前の後ろの（学科）などを出さない）
+const heading = isMember ? displayName(page.title) : page.title;
 
 // 本文に活動へのリンクだけの行がある場合、下の WORKS タグと重複するので本文からは消す
 const workTitles = new Set(memberWorks.map((w) => w.data.title.trim().toLowerCase()));
@@ -64,10 +67,10 @@ const blocks = workTitles.size
   ? bodyBlocks.filter((b) => !(("children" in b) && (b.type === "paragraph" || b.type === "list") && onlyWorkLinks(b.children as Inline[])))
   : bodyBlocks;
 ---
-<Layout title={page.title} description={page.summary} image={page.image} ogType="article">
+<Layout title={heading} description={page.summary} image={page.image} ogType="article" sourceUrl={page.sourceUrl}>
   <article class="profile" data-pagefind-body>
     <BackLink back={back} />
-    <SectionHeader en={navSection?.en ?? back?.en} title={page.title} lead={deptLine} />
+    <SectionHeader en={navSection?.en ?? back?.en} title={heading} lead={deptLine} />
 
     <PageContent blocks={blocks} />
 
@@ -76,10 +79,7 @@ const blocks = workTitles.size
       <div class="profile-works"><WorkChips works={memberWorks} label="Works" /></div>
     )}
 
-    <footer class="profile-source" data-pagefind-ignore>
-      {/* 一覧へ戻るリンクは左上（BackLink）の1つだけにする（ブログ・活動のページと同じ） */}
-      <a href={page.sourceUrl} target="_blank" rel="noopener noreferrer">Source on Cosense ↗</a>
-    </footer>
+    {/* 一覧へ戻るリンクは左上（BackLink）の1つだけ。Cosense の元ページへのリンクはフッターに出す */}
   </article>
 </Layout>
 
@@ -102,13 +102,5 @@ const blocks = workTitles.size
     max-width: 36rem;
     margin: 0 auto;
     line-height: 1.55;
-  }
-  .profile-source {
-    margin-top: 3rem;
-    padding-top: 1.25rem;
-    border-top: 1px solid var(--color-divider);
-    color: var(--color-text-muted);
-    text-align: center;
-    font-size: 0.8125rem;
   }
 </style>

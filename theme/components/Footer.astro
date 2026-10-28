@@ -2,18 +2,32 @@
 // HAnDA: フッター。
 //   - ポリシーへのリンク（handa.config.ts の policies）
 //   - 著作権表示：© 年 名義（名義は handa.config.ts の copyright.holder）
+//   - Source on Cosense：Cosense のページから作ったページでは元のページ、それ以外（トップ・一覧など）は Cosense のプロジェクトへのリンク
 import { path } from "@cosense-site-kit/theme-utils";
+import { getCollection } from "astro:content";
 import { handaConfig } from "../lib/config";
 
 const year = new Date().getFullYear();
 const holder = handaConfig.copyright.holder;
 const links = handaConfig.policies.map((p) => ({ label: p.title, href: path(p.slug) }));
+const props = Astro.props as { sourceUrl?: string };
+// 元のページが無いときは、Cosense のプロジェクトのトップ（どれかのページの URL から求める）
+let projectUrl: string | undefined;
+if (!props.sourceUrl) {
+  const any = (await getCollection("pages")).find((e) => e.data.sourceUrl)?.data.sourceUrl;
+  if (any) {
+    const u = new URL(any);
+    projectUrl = `${u.origin}/${u.pathname.split("/").filter(Boolean)[0]}/`;
+  }
+}
+const sourceUrl = props.sourceUrl ?? projectUrl;
 ---
 <footer class="site-footer">
   <div class="site-footer-inner">
-    {links.length > 0 && (
+    {(links.length > 0 || sourceUrl) && (
       <nav class="footer-links" aria-label="サイト情報">
         {links.map((l) => <a href={l.href}>{l.label}</a>)}
+        {sourceUrl && <a href={sourceUrl} target="_blank" rel="noopener noreferrer" data-pagefind-ignore>Source on Cosense ↗</a>}
       </nav>
     )}
     <p class="footer-copy">
