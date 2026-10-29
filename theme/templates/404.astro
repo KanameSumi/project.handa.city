@@ -1,6 +1,6 @@
 ---
 // HAnDA: 見つからないページ（404）。赤レンガの壁から「レンガがひとつ抜け落ちた」絵で知らせる。
-// - 壁は背景と同じイギリス積み。真ん中の1つが抜けて、下に落ちている
+// - 壁は背景と同じイギリス積み。真ん中の1つが抜けて、フッターの線の少し上まで落ちている
 // - 落ちたレンガはつかんで動かせる。穴に戻すと、ぴたっとはまってホームへ移る
 // - 文字は「404 NOT FOUND」と短い説明だけ。ホームへは、レンガを戻すか、クリックで移れる
 // テーマ標準の注意点（そのまま）:
@@ -63,7 +63,12 @@ const rows = Array.from({ length: ROWS }, (_, r) => {
       const holeLeft = h.left - s.left;
       const holeTop = h.top - s.top;
       const restLeft = holeLeft;
-      const restTop = s.height - h.height - 8;
+      // フッターの線より少し上まで落とす（フッターが見つからないときは壁の下）
+      const footer = document.querySelector<HTMLElement>(".site-footer-inner") ?? document.querySelector<HTMLElement>(".site-footer");
+      const floor = footer ? footer.getBoundingClientRect().top - s.top - 14 : s.height - 8;
+      const restTop = Math.max(s.height - 8, floor) - h.height;
+      // 落ちる距離に合わせて、落ちる時間も少し長くする
+      brick.style.setProperty("--fall-dur", `${Math.min(1.1, 0.45 + (restTop - holeTop) / 900).toFixed(2)}s`);
       brick.style.width = `${h.width}px`;
       brick.style.left = `${restLeft}px`;
       brick.style.top = `${restTop}px`;
@@ -73,6 +78,8 @@ const rows = Array.from({ length: ROWS }, (_, r) => {
     place();
     brick.classList.add("is-ready"); // ここで落ちる動きが始まる
     window.addEventListener("resize", () => { if (!brick.classList.contains("is-placed")) place(); });
+    // 文字の読み込みで高さが変わったときも、落ちる先を合わせ直す
+    document.fonts?.ready.then(() => { if (!brick.classList.contains("is-placed") && !brick.classList.contains("is-dragging")) place(); });
     let sx = 0, sy = 0, dx = 0, dy = 0, dragging = false, moved = false, done = false;
 
     // 穴の中心と、いまのレンガの中心の差
@@ -225,8 +232,8 @@ const rows = Array.from({ length: ROWS }, (_, r) => {
   .nf-fallen.is-ready {
     visibility: visible;
     animation:
-      nf-fall 0.55s cubic-bezier(0.55, 0, 0.8, 0.4) 0.5s both,
-      nf-land 0.5s ease-out 1.05s forwards;
+      nf-fall var(--fall-dur, 0.55s) cubic-bezier(0.55, 0, 0.8, 0.4) 0.5s both,
+      nf-land 0.5s ease-out calc(0.5s + var(--fall-dur, 0.55s)) forwards;
     /* 後ろのアニメーションほど優先されるので、始まる前の状態（穴の中）を持つのは「落ちる」だけにしている */
   }
   /* つかんでいる間は、本文の白いパネルごと一番手前に出して、

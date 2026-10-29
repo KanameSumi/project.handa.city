@@ -1,0 +1,82 @@
+---
+// HAnDA: 右下に浮かぶ「ページの先頭へ」のボタン（全ページ共通）。
+// 少し下へスクロールすると、ふわっと出てくる。押すとなめらかに一番上へ戻る。
+// 白いパネルの右下の内側に置く（スマホは画面の右下）
+---
+<button type="button" class="back-to-top" aria-label="ページの先頭へ" title="ページの先頭へ" data-pagefind-ignore>
+  <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+    <path d="M12 19V6M6 11.5 12 5.5l6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+  </svg>
+</button>
+
+<script>
+  const btn = document.querySelector<HTMLButtonElement>(".back-to-top");
+  if (btn) {
+    const SHOW_AFTER = 400; // これより下までスクロールしたら出す（px）
+    const update = () => btn.classList.toggle("is-shown", window.scrollY > SHOW_AFTER);
+    update();
+    window.addEventListener("scroll", update, { passive: true });
+    window.addEventListener("pageshow", update);
+    btn.addEventListener("click", () => {
+      const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      window.scrollTo({ top: 0, behavior: reduce ? "auto" : "smooth" });
+      btn.blur();
+    });
+  }
+</script>
+
+<style>
+  .back-to-top {
+    position: fixed;
+    z-index: 30;
+    /* 白いパネルの右端から少し内側（パネルより画面が狭いときは画面の右端から） */
+    right: max(16px, calc((100vw - var(--panel-width, 1100px)) / 2 + 20px));
+    bottom: 24px;
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border: 1px solid var(--color-border);
+    border-radius: 50%;
+    background: var(--color-bg);
+    color: var(--color-accent);
+    box-shadow: 0 10px 24px -10px rgb(0 0 0 / 0.35);
+    cursor: pointer;
+    /* ふだんは隠しておき、下へスクロールしたら下からふわっと出す */
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(12px);
+    transition:
+      opacity 0.3s ease,
+      transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+      visibility 0s linear 0.35s,
+      background 0.15s var(--ease),
+      color 0.15s var(--ease),
+      border-color 0.15s var(--ease);
+  }
+  .back-to-top.is-shown {
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+    transition:
+      opacity 0.3s ease,
+      transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+      visibility 0s,
+      background 0.15s var(--ease),
+      color 0.15s var(--ease),
+      border-color 0.15s var(--ease);
+  }
+  .back-to-top:hover {
+    background: var(--color-accent);
+    border-color: var(--color-accent);
+    color: #fff;
+  }
+  .back-to-top:focus-visible { outline: 2px solid var(--color-blue, #1658a0); outline-offset: 3px; }
+  @media (max-width: 720px) {
+    .back-to-top { right: 16px; bottom: 16px; width: 42px; height: 42px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .back-to-top, .back-to-top.is-shown { transition: none; transform: none; }
+  }
+</style>

@@ -35,7 +35,7 @@ const data = dataBlock && dataBlock.type === "code" ? parseCollection(dataBlock.
 const beforeBlocks = page.blocks.slice(0, dataIndex === -1 ? page.blocks.length : dataIndex);
 const afterBlocks = dataIndex === -1 ? [] : page.blocks.slice(dataIndex + 1);
 ---
-<Layout title={page.title} description={page.summary} image={page.image} ogType="article">
+<Layout title={page.title} description={page.summary} image={page.image} ogType="article" sourceUrl={page.sourceUrl}>
   <article class="collection" data-pagefind-body>
     <header class="collection-header">
       <h1>{page.title}</h1>
@@ -112,8 +112,7 @@ const afterBlocks = dataIndex === -1 ? [] : page.blocks.slice(dataIndex + 1);
     )}
 
     <footer class="source" data-pagefind-ignore>
-      <a href={page.sourceUrl} target="_blank" rel="noopener noreferrer">Source on Cosense ↗</a>
-      {" · "}
+      {/* HAnDA: Cosense の元ページへのリンクはフッターに出す（Layout の sourceUrl） */}
       <a href={path("")}>← Back to home</a>
     </footer>
   </article>
